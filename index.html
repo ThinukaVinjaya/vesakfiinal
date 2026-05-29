@@ -1,28 +1,29 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Vesak City Experience</title>
+    <title>AR Vesak City - Statue Mode</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; }
         #ar-instructions {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.7); color: white; padding: 12px 24px;
+            background: rgba(0,0,0,0.85); color: #fff; padding: 12px 24px;
             border-radius: 20px; font-size: 14px; text-align: center; pointer-events: none;
-            z-index: 10; display: none;
+            z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
 </head>
 <body>
 
-    <div id="ar-instructions">Move your phone to scan the ground, then tap to place a Vesak Lantern!</div>
+    <div id="ar-instructions">Scan the ground surface, then tap to place the Buddha Statue!</div>
 
     <script type="module">
-        // Importing ARButton as an ES module
         import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js';
+        // Importing GLTFLoader to parse the .glb file
+        import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 
         let container;
         let camera, scene, renderer;
@@ -30,7 +31,12 @@
         let hitTestSource = null;
         let hitTestSourceRequested = false;
         
-        const lanterns = [];
+        let loader;
+        let loadedModelTemplate = null;
+        const placedModels = [];
+
+        // Direct RAW link to your GitHub repository asset
+        const MODEL_URL = 'https://raw.githubusercontent.com/ThinukaVinjaya/vesakmodels/main/stone_buddha_statue.glb';
 
         init();
         animate();
@@ -40,125 +46,84 @@
             document.body.appendChild(container);
 
             scene = new THREE.Scene();
-
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-            // Ambient lighting simulates city night ambient light
-            const ambientLight = new THREE.AmbientLight(0x221133, 1.5);
+            // Vibrant directional and ambient setup to illuminate the stone texture elegantly
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambientLight);
 
-            // Renderer configuration
+            const directionalLight = new THREE.DirectionalLight(0xffeebb, 1.2);
+            directionalLight.position.set(1, 2, 1);
+            scene.add(directionalLight);
+
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
             container.appendChild(renderer.domElement);
 
-            // Add the official WebXR Enter AR Button
             document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-            // Create the floor-tracking Target Ring (Reticle)
-            const ringGeometry = new THREE.RingGeometry(0.1, 0.13, 32).rotateX(-Math.PI / 2);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            // Target Ring Setup
+            const ringGeometry = new THREE.RingGeometry(0.12, 0.15, 32).rotateX(-Math.PI / 2);
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
             reticle = new THREE.Mesh(ringGeometry, ringMaterial);
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
 
-            // Controller / Screen Tap interaction setup
+            // Initialize GLTF Loader and cache the asset into memory before placing
+            loader = new GLTFLoader();
+            loader.load(
+                MODEL_URL,
+                (gltf) => {
+                    loadedModelTemplate = gltf.scene;
+                    console.log('Vesak 3D Statue successfully downloaded and cached.');
+                },
+                (xhr) => {
+                    console.log((xhr.loaded / xhr.total * 100) + '% downloaded');
+                },
+                (error) => {
+                    console.error('An error occurred while fetching the model:', error);
+                }
+            );
+
             const controller = renderer.xr.getController(0);
             controller.addEventListener('select', onSelect);
             scene.add(controller);
 
             window.addEventListener('resize', onWindowResize);
             
-            // Listen to XR Session start to show instructions
             renderer.xr.addEventListener('sessionstart', () => {
                 document.getElementById('ar-instructions').style.display = 'block';
             });
         }
 
-        // Custom function to procedurally build a traditional Sri Lankan octagonal lantern structure
-        function createVesakLanternMesh() {
-            const group = new THREE.Group();
-
-            // Core material with emissive 'glow' properties
-            const paperMaterial = new THREE.MeshStandardMaterial({
-                color: 0xff6600, 
-                emissive: 0xff3300, 
-                emissiveIntensity: 2.0,
-                roughness: 0.4,
-                transparent: true,
-                opacity: 0.95
-            });
-
-            // Make a random vibrant pastel/traditional accent color for tassels
-            const colors = [0xff0055, 0x00ffaa, 0xffcc00, 0xcc00ff];
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            const tasselMaterial = new THREE.MeshStandardMaterial({
-                color: randomColor,
-                emissive: randomColor,
-                emissiveIntensity: 1.0
-            });
-
-            // 1. Central Body: Octagonal Prism (Cylinder with 8 segments)
-            const bodyGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.2, 8);
-            const body = new THREE.Mesh(bodyGeo, paperMaterial);
-            body.position.y = 0.25;
-            group.add(body);
-
-            // 2. Top and Bottom Pyramid Caps
-            const capGeoTop = new THREE.ConeGeometry(0.18, 0.12, 8).rotateX(0);
-            const topCap = new THREE.Mesh(capGeoTop, paperMaterial);
-            topCap.position.y = 0.41;
-            group.add(topCap);
-
-            const capGeoBottom = new THREE.ConeGeometry(0.18, 0.12, 8).rotateX(Math.PI);
-            const bottomCap = new THREE.Mesh(capGeoBottom, paperMaterial);
-            bottomCap.position.y = 0.09;
-            group.add(bottomCap);
-
-            // 3. Decorative Tassels (Savari) hanging from the bottom points
-            for (let i = 0; i < 4; i++) {
-                const tasselGeo = new THREE.BoxGeometry(0.02, 0.18, 0.01);
-                const tassel = new THREE.Mesh(tasselGeo, tasselMaterial);
-                const angle = (i / 4) * Math.PI * 2;
-                tassel.position.set(Math.cos(angle) * 0.12, -0.05, Math.sin(angle) * 0.12);
-                tassel.rotation.z = 0.1;
-                group.add(tassel);
-            }
-
-            // 4. Point Light hidden inside the lantern to illuminate the real world street surroundings
-            const lanternLight = new THREE.PointLight(0xffaa44, 3, 4);
-            lanternLight.position.y = 0.25;
-            group.add(lanternLight);
-
-            // Scale down to a realistic size for street side decoration
-            group.scale.set(1.5, 1.5, 1.5);
-
-            return group;
-        }
-
         function onSelect() {
-            // Only spawn if the AR system has locked onto a real physical surface
-            if (reticle.visible) {
-                const lantern = createVesakLanternMesh();
+            // Only drop the model if the reticle sees a surface AND the file is finished loading
+            if (reticle.visible && loadedModelTemplate) {
                 
-                // Position lantern right where the user tapped on the street ground plane
-                reticle.matrix.decompose(lantern.position, lantern.rotation, lantern.scale);
+                // Clone the master template model so users can place multiple statues around the city streets
+                const statueInstance = loadedModelTemplate.clone();
                 
-                // Offset vertically slightly so it hovers above the floor gracefully
-                lantern.position.y += 0.2;
+                // Read position/rotation matrices directly off the tracked AR floor marker
+                reticle.matrix.decompose(statueInstance.position, statueInstance.rotation, statueInstance.scale);
                 
-                // Store structural data for animation loops
-                lantern.userData = { 
-                    bobSpeed: 0.002 + Math.random() * 0.002, 
-                    rotSpeed: 0.005 + Math.random() * 0.005,
-                    baseY: lantern.position.y 
-                };
+                /* 
+                  🎯 CONFIGURING SCALE & ORIENTATION
+                  Depending on how your model was saved in your 3D software (Blender/Maya), 
+                  it might be tiny or massive. Tweak this scale multiplier below if needed.
+                  0.5 means 50% scale.
+                */
+                statueInstance.scale.set(0.5, 0.5, 0.5);
 
-                scene.add(lantern);
-                lanterns.push(lantern);
+                // Face the statue toward the camera user when spawned
+                statueInstance.rotation.y += Math.PI;
+
+                scene.add(statueInstance);
+                placedModels.push(statueInstance);
+            } else if (!loadedModelTemplate) {
+                alert("Model is still downloading in the background. Give it a brief moment!");
             }
         }
 
@@ -177,29 +142,24 @@
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
-                // Initialize hit testing to find real walls and floors
                 if (hitTestSourceRequested === false) {
                     session.requestReferenceSpace('viewer').then(function (viewerSpace) {
                         session.requestHitTestSource({ space: viewerSpace }).then(function (source) {
                             hitTestSource = source;
                         });
                     });
-
                     session.addEventListener('end', function () {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                         document.getElementById('ar-instructions').style.display = 'none';
                     });
-
                     hitTestSourceRequested = true;
                 }
 
-                // If hit test runs successfully, move our targeting reticle along physical surfaces
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
-
                     if (hitTestResults.length) {
-                        const hit = hitTestResults;
+                        const hit = hitTestResults[0];
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
@@ -207,13 +167,6 @@
                     }
                 }
             }
-
-            // Animate floating lanterns with gentle wind swaying & rotational drift
-            const time = performance.now();
-            lanterns.forEach(lantern => {
-                lantern.position.y = lantern.userData.baseY + Math.sin(time * lantern.userData.bobSpeed) * 0.05;
-                lantern.rotation.y += lantern.userData.rotSpeed;
-            });
 
             renderer.render(scene, camera);
         }
