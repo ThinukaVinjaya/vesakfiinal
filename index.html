@@ -1,175 +1,421 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Vesak City - Statue Mode</title>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
-        #ar-instructions {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); color: #fff; padding: 12px 24px;
-            border-radius: 20px; font-size: 14px; text-align: center; pointer-events: none;
-            z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Vesak AR Experience</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;1,400&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0f;
+      color: #f0e6c8;
+      font-family: 'Crimson Text', serif;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Landing Screen ── */
+    #landing {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 50% 30%, #1a0e00 0%, #0a0608 60%, #05030a 100%);
+      z-index: 100;
+      gap: 0;
+    }
+
+    .mandala-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255,200,80,0.12);
+      animation: rotate 30s linear infinite;
+    }
+    .mandala-ring:nth-child(1) { width: 320px; height: 320px; animation-duration: 40s; }
+    .mandala-ring:nth-child(2) { width: 480px; height: 480px; animation-duration: 60s; animation-direction: reverse; border-color: rgba(255,160,40,0.07); }
+    .mandala-ring:nth-child(3) { width: 640px; height: 640px; animation-duration: 80s; border-color: rgba(255,120,20,0.04); }
+    @keyframes rotate { to { transform: rotate(360deg); } }
+
+    .lotus-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1.2rem;
+      filter: drop-shadow(0 0 24px rgba(255,200,80,0.6));
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+    @keyframes pulse-glow {
+      0%,100% { filter: drop-shadow(0 0 16px rgba(255,200,80,0.5)); }
+      50%      { filter: drop-shadow(0 0 36px rgba(255,200,80,0.9)); }
+    }
+
+    h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      letter-spacing: 0.12em;
+      color: #ffd780;
+      text-shadow: 0 0 40px rgba(255,200,80,0.4);
+      text-align: center;
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-style: italic;
+      color: rgba(240,230,200,0.55);
+      font-size: 1.05rem;
+      letter-spacing: 0.08em;
+      margin-bottom: 2.8rem;
+      text-align: center;
+    }
+
+    .info-cards {
+      display: flex;
+      gap: 1.2rem;
+      margin-bottom: 2.4rem;
+    }
+    .info-card {
+      background: rgba(255,200,80,0.06);
+      border: 1px solid rgba(255,200,80,0.18);
+      border-radius: 12px;
+      padding: 0.9rem 1.2rem;
+      text-align: center;
+      width: 130px;
+    }
+    .info-card .icon { font-size: 1.6rem; margin-bottom: 0.3rem; }
+    .info-card .label { font-size: 0.72rem; color: rgba(240,230,200,0.5); letter-spacing: 0.06em; text-transform: uppercase; }
+    .info-card .value { font-family: 'Cinzel', serif; font-size: 0.85rem; color: #ffd780; margin-top: 0.2rem; }
+
+    #start-btn {
+      background: linear-gradient(135deg, #c8860a 0%, #f0b940 50%, #c8860a 100%);
+      border: none;
+      color: #1a0e00;
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      padding: 1rem 2.6rem;
+      border-radius: 50px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(255,185,64,0.35), 0 4px 20px rgba(0,0,0,0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #start-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 50px rgba(255,185,64,0.55), 0 8px 30px rgba(0,0,0,0.5);
+    }
+    #start-btn:active { transform: translateY(0); }
+
+    #not-supported {
+      display: none;
+      background: rgba(200,50,50,0.15);
+      border: 1px solid rgba(200,50,50,0.4);
+      border-radius: 12px;
+      padding: 1rem 1.6rem;
+      text-align: center;
+      max-width: 320px;
+      font-size: 0.9rem;
+      color: #ffaaaa;
+      margin-top: 1rem;
+    }
+
+    /* ── AR Overlay UI ── */
+    #ar-ui {
+      display: none;
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .ar-label {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(10,8,5,0.7);
+      border: 1px solid rgba(255,200,80,0.35);
+      border-radius: 10px;
+      padding: 0.5rem 0.9rem;
+      font-family: 'Cinzel', serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      color: #ffd780;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+    #label-statue  { left: 2%; }
+    #label-stupa   { right: 2%; }
+
+    .ar-top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: linear-gradient(to bottom, rgba(10,6,0,0.65), transparent);
+    }
+    .ar-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      letter-spacing: 0.14em;
+      color: #ffd780;
+      text-shadow: 0 0 12px rgba(255,200,80,0.5);
+    }
+
+    #exit-btn {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: rgba(10,6,0,0.75);
+      border: 1px solid rgba(255,200,80,0.3);
+      border-radius: 50%;
+      width: 42px; height: 42px;
+      color: #ffd780;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: all;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+    #exit-btn:hover { background: rgba(200,134,10,0.3); }
+
+    .ar-bottom-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 1.4rem;
+      background: linear-gradient(to top, rgba(10,6,0,0.7), transparent);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .ar-hint {
+      font-size: 0.8rem;
+      color: rgba(240,230,200,0.55);
+      letter-spacing: 0.05em;
+      text-align: center;
+      font-style: italic;
+    }
+    .divider-dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: rgba(255,200,80,0.4);
+    }
+
+    /* loading spinner */
+    #loading-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(5,3,10,0.88);
+      z-index: 200;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+    .spinner {
+      width: 56px; height: 56px;
+      border: 3px solid rgba(255,200,80,0.15);
+      border-top-color: #ffd780;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-family: 'Cinzel', serif;
+      color: #ffd780;
+      font-size: 0.9rem;
+      letter-spacing: 0.12em;
+    }
+  </style>
 </head>
 <body>
 
-    <div id="ar-instructions">Scan the ground surface, then tap to place the Buddha Statue!</div>
+<!-- Landing -->
+<div id="landing">
+  <div class="mandala-ring"></div>
+  <div class="mandala-ring"></div>
+  <div class="mandala-ring"></div>
 
-    <script type="module">
-        import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js';
-        // Importing GLTFLoader to parse the .glb file
-        import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
+  <div class="lotus-icon">🪷</div>
+  <h1>Vesak AR<br>Experience</h1>
+  <p class="subtitle">Augmented Reality · Sacred Monuments of Sri Lanka</p>
 
-        let container;
-        let camera, scene, renderer;
-        let reticle;
-        let hitTestSource = null;
-        let hitTestSourceRequested = false;
-        
-        let loader;
-        let loadedModelTemplate = null;
-        const placedModels = [];
+  <div class="info-cards">
+    <div class="info-card">
+      <div class="icon">🧘</div>
+      <div class="label">Left</div>
+      <div class="value">Buddha Statue</div>
+    </div>
+    <div class="info-card">
+      <div class="icon">🏛️</div>
+      <div class="label">Right</div>
+      <div class="value">Stupa Temple</div>
+    </div>
+  </div>
 
-        // Direct RAW link to your GitHub repository asset
-        const MODEL_URL = 'https://raw.githubusercontent.com/ThinukaVinjaya/vesakmodels/main/stone_buddha_statue.glb';
+  <button id="start-btn" onclick="startAR()">✦ Enter AR Experience ✦</button>
+  <div id="not-supported"></div>
+</div>
 
-        init();
-        animate();
+<!-- Loading -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Loading Sacred Models…</div>
+</div>
 
-        function init() {
-            container = document.createElement('div');
-            document.body.appendChild(container);
+<!-- AR UI Overlay -->
+<div id="ar-ui">
+  <div class="ar-top-bar">
+    <span class="ar-title">✦ Vesak AR ✦</span>
+  </div>
+  <button id="exit-btn" onclick="endAR()">✕</button>
 
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+  <div class="ar-label" id="label-statue">🧘<br>Buddha<br>Statue</div>
+  <div class="ar-label" id="label-stupa">🏛️<br>Sri Lanka<br>Stupa</div>
 
-            // Vibrant directional and ambient setup to illuminate the stone texture elegantly
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambientLight);
+  <div class="ar-bottom-bar">
+    <div class="divider-dot"></div>
+    <p class="ar-hint">Move your device slowly to place models · Pinch to scale</p>
+  </div>
+</div>
 
-            const directionalLight = new THREE.DirectionalLight(0xffeebb, 1.2);
-            directionalLight.position.set(1, 2, 1);
-            scene.add(directionalLight);
+<!-- A-Frame + AR.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.5.0/aframe.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-            container.appendChild(renderer.domElement);
+<script>
+  // Raw CDN URLs for the GLB files via jsDelivr (GitHub raw proxy)
+  const STATUE_URL = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/stone_buddha_statue.glb';
+  const STUPA_URL  = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/sthupa_srilanka.glb';
 
-            document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+  let sceneEl = null;
 
-            // Target Ring Setup
-            const ringGeometry = new THREE.RingGeometry(0.12, 0.15, 32).rotateX(-Math.PI / 2);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
-            reticle = new THREE.Mesh(ringGeometry, ringMaterial);
-            reticle.matrixAutoUpdate = false;
-            reticle.visible = false;
-            scene.add(reticle);
+  async function startAR() {
+    // Check for camera permission / WebXR or AR.js support
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showNotSupported('Camera API not available on this device/browser.');
+      return;
+    }
 
-            // Initialize GLTF Loader and cache the asset into memory before placing
-            loader = new GLTFLoader();
-            loader.load(
-                MODEL_URL,
-                (gltf) => {
-                    loadedModelTemplate = gltf.scene;
-                    console.log('Vesak 3D Statue successfully downloaded and cached.');
-                },
-                (xhr) => {
-                    console.log((xhr.loaded / xhr.total * 100) + '% downloaded');
-                },
-                (error) => {
-                    console.error('An error occurred while fetching the model:', error);
-                }
-            );
+    try {
+      // Request camera permission first
+      await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    } catch (e) {
+      showNotSupported('Camera permission denied. Please allow camera access and try again.');
+      return;
+    }
 
-            const controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
+    showLoading(true);
+    buildScene();
+  }
 
-            window.addEventListener('resize', onWindowResize);
-            
-            renderer.xr.addEventListener('sessionstart', () => {
-                document.getElementById('ar-instructions').style.display = 'block';
-            });
-        }
+  function buildScene() {
+    // Remove any prior scene
+    const old = document.getElementById('ar-scene');
+    if (old) old.remove();
 
-        function onSelect() {
-            // Only drop the model if the reticle sees a surface AND the file is finished loading
-            if (reticle.visible && loadedModelTemplate) {
-                
-                // Clone the master template model so users can place multiple statues around the city streets
-                const statueInstance = loadedModelTemplate.clone();
-                
-                // Read position/rotation matrices directly off the tracked AR floor marker
-                reticle.matrix.decompose(statueInstance.position, statueInstance.rotation, statueInstance.scale);
-                
-                /* 
-                  🎯 CONFIGURING SCALE & ORIENTATION
-                  Depending on how your model was saved in your 3D software (Blender/Maya), 
-                  it might be tiny or massive. Tweak this scale multiplier below if needed.
-                  0.5 means 50% scale.
-                */
-                statueInstance.scale.set(0.5, 0.5, 0.5);
+    sceneEl = document.createElement('a-scene');
+    sceneEl.id = 'ar-scene';
+    sceneEl.setAttribute('embedded', '');
+    sceneEl.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
+    sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
+    sceneEl.setAttribute('renderer', 'logarithmicDepthBuffer: true; colorManagement: true;');
+    sceneEl.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;';
 
-                // Face the statue toward the camera user when spawned
-                statueInstance.rotation.y += Math.PI;
+    // Assets
+    const assets = document.createElement('a-assets');
+    assets.setAttribute('timeout', '30000');
 
-                scene.add(statueInstance);
-                placedModels.push(statueInstance);
-            } else if (!loadedModelTemplate) {
-                alert("Model is still downloading in the background. Give it a brief moment!");
-            }
-        }
+    const statueAsset = document.createElement('a-asset-item');
+    statueAsset.id = 'buddha-model';
+    statueAsset.setAttribute('src', STATUE_URL);
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+    const stupaAsset = document.createElement('a-asset-item');
+    stupaAsset.id = 'stupa-model';
+    stupaAsset.setAttribute('src', STUPA_URL);
 
-        function animate() {
-            renderer.setAnimationLoop(render);
-        }
+    assets.appendChild(statueAsset);
+    assets.appendChild(stupaAsset);
+    sceneEl.appendChild(assets);
 
-        function render(timestamp, frame) {
-            if (frame) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const session = renderer.xr.getSession();
+    // ── Marker for Buddha (Hiro) - LEFT ──
+    const marker1 = document.createElement('a-marker');
+    marker1.setAttribute('preset', 'hiro');
+    marker1.setAttribute('id', 'marker-buddha');
 
-                if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then(function (viewerSpace) {
-                        session.requestHitTestSource({ space: viewerSpace }).then(function (source) {
-                            hitTestSource = source;
-                        });
-                    });
-                    session.addEventListener('end', function () {
-                        hitTestSourceRequested = false;
-                        hitTestSource = null;
-                        document.getElementById('ar-instructions').style.display = 'none';
-                    });
-                    hitTestSourceRequested = true;
-                }
+    const statueEntity = document.createElement('a-entity');
+    statueEntity.setAttribute('gltf-model', '#buddha-model');
+    statueEntity.setAttribute('scale', '0.5 0.5 0.5');
+    statueEntity.setAttribute('position', '0 0 0');
+    statueEntity.setAttribute('rotation', '0 0 0');
+    statueEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 12000; easing: linear');
+    marker1.appendChild(statueEntity);
+    sceneEl.appendChild(marker1);
 
-                if (hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    if (hitTestResults.length) {
-                        const hit = hitTestResults[0];
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
-                    } else {
-                        reticle.visible = false;
-                    }
-                }
-            }
+    // ── Marker for Stupa (Kanji) - RIGHT ──
+    const marker2 = document.createElement('a-marker');
+    marker2.setAttribute('preset', 'kanji');
+    marker2.setAttribute('id', 'marker-stupa');
 
-            renderer.render(scene, camera);
-        }
-    </script>
+    const stupaEntity = document.createElement('a-entity');
+    stupaEntity.setAttribute('gltf-model', '#stupa-model');
+    stupaEntity.setAttribute('scale', '0.5 0.5 0.5');
+    stupaEntity.setAttribute('position', '0 0 0');
+    stupaEntity.setAttribute('rotation', '0 0 0');
+    stupaEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 16000; easing: linear');
+    marker2.appendChild(stupaEntity);
+    sceneEl.appendChild(marker2);
+
+    // Camera
+    const camEntity = document.createElement('a-entity');
+    camEntity.setAttribute('camera', '');
+    sceneEl.appendChild(camEntity);
+
+    // Scene loaded
+    sceneEl.addEventListener('loaded', () => {
+      showLoading(false);
+      document.getElementById('landing').style.display = 'none';
+      document.getElementById('ar-ui').style.display = 'block';
+    });
+
+    // Fallback timeout
+    setTimeout(() => {
+      showLoading(false);
+      document.getElementById('landing').style.display = 'none';
+      document.getElementById('ar-ui').style.display = 'block';
+    }, 6000);
+
+    document.body.appendChild(sceneEl);
+  }
+
+  function endAR() {
+    const scene = document.getElementById('ar-scene');
+    if (scene) scene.remove();
+    document.getElementById('ar-ui').style.display = 'none';
+    document.getElementById('landing').style.display = 'flex';
+
+    // Stop camera streams
+    const videos = document.querySelectorAll('video');
+    videos.forEach(v => {
+      if (v.srcObject) {
+        v.srcObject.getTracks().forEach(t => t.stop());
+      }
+    });
+  }
+
+  function showLoading(show) {
+    document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+  }
+
+  function showNotSupported(msg) {
+    const el = document.getElementById('not-supported');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+</script>
 </body>
 </html>
