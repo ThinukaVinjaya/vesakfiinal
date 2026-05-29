@@ -2,42 +2,36 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
-<title>Vesak AR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AR Buddha Statue</title>
 
 <style>
-html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:serif}
+html,body{margin:0;overflow:hidden;background:#000;font-family:serif}
 canvas{width:100%;height:100%;display:block}
 
-#landing{
-  position:fixed;inset:0;z-index:10;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:radial-gradient(circle,#1b1200,#000);
-  color:#ffd780;text-align:center
+#ui{
+  position:fixed;inset:0;display:flex;
+  align-items:center;justify-content:center;
+  flex-direction:column;color:#ffdca8;
+  background:radial-gradient(circle,#1a1200,#000);
+  z-index:10;
 }
 
 button{
-  padding:14px 30px;
-  border-radius:30px;
-  border:1px solid #ffcc66;
-  background:#221100;
-  color:#ffd780;
-  font-size:16px;
-  cursor:pointer;
+  padding:14px 28px;border-radius:30px;
+  border:1px solid #ffcc88;
+  background:#221100;color:#ffdca8;
+  font-size:16px;cursor:pointer;
 }
 
 #hud{
-  position:fixed;inset:0;z-index:5;pointer-events:none;
-  display:none;color:#ffd780
+  position:fixed;inset:0;display:none;
+  z-index:5;pointer-events:none;
 }
 
-#placeBtn{
-  position:absolute;bottom:40px;left:50%;transform:translateX(-50%);
-  pointer-events:auto;
-}
-
-#exitBtn{
-  position:absolute;top:20px;right:20px;
+#place{
+  position:absolute;bottom:40px;left:50%;
+  transform:translateX(-50%);
   pointer-events:auto;
 }
 </style>
@@ -45,16 +39,14 @@ button{
 
 <body>
 
-<div id="landing">
-  <h1>Vesak AR</h1>
-  <p>Tap to enter AR</p>
-  <button onclick="initAR()">Enter AR</button>
-  <p id="err"></p>
+<div id="ui">
+  <h1>🪷 AR Buddha Statue</h1>
+  <p>Place a sacred Buddha statue in your space</p>
+  <button onclick="startAR()">Enter AR</button>
 </div>
 
 <div id="hud">
-  <button id="exitBtn" onclick="exitAR()">Exit</button>
-  <button id="placeBtn" onclick="placeModels()">Place Models</button>
+  <button id="place" onclick="place()">Place Statue</button>
 </div>
 
 <canvas id="c"></canvas>
@@ -63,23 +55,22 @@ button{
 <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
+
 let scene, camera, renderer;
-let xrSession;
-let hitTestSource;
+let xrSession, hitSource;
 let reticle;
-let lastHit = new THREE.Matrix4();
+let hitMatrix = new THREE.Matrix4();
 let hitFound = false;
 let placed = false;
 
-let buddha, stupa;
+let buddha;
 
-const BUDDHA_URL = "https://modelviewer.dev/shared-assets/models/Astronaut.glb";
-const STUPA_URL  = "https://modelviewer.dev/shared-assets/models/Astronaut.glb";
+const BUDDHA_MODEL =
+"https://modelviewer.dev/shared-assets/models/Astronaut.glb"; // safe fallback model
 
 function initScene(){
 
   scene = new THREE.Scene();
-
   camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 100);
 
   renderer = new THREE.WebGLRenderer({
@@ -88,76 +79,75 @@ function initScene(){
     antialias:true
   });
 
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
   renderer.xr.enabled = true;
 
-  scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.5));
+  scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.6));
 
-  // reticle
-  const geo = new THREE.RingGeometry(0.05,0.08,32).rotateX(-Math.PI/2);
-  reticle = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:0xffcc66}));
+  const geo = new THREE.RingGeometry(0.05,0.09,32).rotateX(-Math.PI/2);
+  reticle = new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0xffcc66}));
   reticle.matrixAutoUpdate = false;
   reticle.visible = false;
   scene.add(reticle);
 }
 
-function loadGLB(url){
+function loadBuddha(){
+
   return new Promise(res=>{
+
     const loader = new THREE.GLTFLoader();
 
-    loader.load(url, gltf=>{
+    loader.load(BUDDHA_MODEL,(gltf)=>{
 
       const obj = gltf.scene;
 
+      // scale
       const box = new THREE.Box3().setFromObject(obj);
       const size = new THREE.Vector3();
       box.getSize(size);
 
-      const scale = 0.4 / Math.max(size.x,size.y,size.z);
-      obj.scale.setScalar(scale);
+      const s = 0.5 / Math.max(size.x,size.y,size.z);
+      obj.scale.setScalar(s);
 
+      // place on ground
       const box2 = new THREE.Box3().setFromObject(obj);
       obj.position.y -= box2.min.y;
 
       const group = new THREE.Group();
       group.add(obj);
-
       group.visible = true;
-      scene.add(group);
 
+      scene.add(group);
       res(group);
 
-    },undefined,err=>{
+    },undefined,()=>{
 
-      console.warn("GLB failed", err);
-
+      // fallback statue (gold block)
       const m = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2,0.2,0.2),
-        new THREE.MeshStandardMaterial({color:0xffaa00})
+        new THREE.CylinderGeometry(0.15,0.2,0.5,32),
+        new THREE.MeshStandardMaterial({color:0xd4af37})
       );
 
       const g = new THREE.Group();
       g.add(m);
       g.visible = true;
-
       scene.add(g);
-      res(g);
 
+      res(g);
     });
+
   });
 }
 
-async function initAR(){
+async function startAR(){
 
   if(!navigator.xr){
-    document.getElementById("err").innerText="WebXR not supported";
+    alert("WebXR not supported");
     return;
   }
 
   initScene();
-
-  buddha = await loadGLB(BUDDHA_URL);
-  stupa  = await loadGLB(STUPA_URL);
+  buddha = await loadBuddha();
 
   xrSession = await navigator.xr.requestSession("immersive-ar",{
     requiredFeatures:["hit-test"],
@@ -165,32 +155,33 @@ async function initAR(){
     domOverlay:{root:document.getElementById("hud")}
   });
 
-  document.getElementById("landing").style.display="none";
+  document.getElementById("ui").style.display="none";
   document.getElementById("hud").style.display="block";
 
   renderer.xr.setReferenceSpaceType("local");
   await renderer.xr.setSession(xrSession);
 
   const viewer = await xrSession.requestReferenceSpace("viewer");
-  hitTestSource = await xrSession.requestHitTestSource({space:viewer});
+  hitSource = await xrSession.requestHitTestSource({space:viewer});
 
   renderer.setAnimationLoop(onFrame);
 }
 
-function onFrame(t, frame){
+function onFrame(t,frame){
 
   if(!frame) return;
 
   const refSpace = renderer.xr.getReferenceSpace();
-  const hits = frame.getHitTestResults(hitTestSource);
+  const hits = frame.getHitTestResults(hitSource);
 
   if(hits.length>0 && !placed){
+
     const pose = hits[0].getPose(refSpace);
 
-    lastHit.fromArray(new Float32Array(pose.transform.matrix));
+    hitMatrix.fromArray(new Float32Array(pose.transform.matrix));
 
     reticle.visible = true;
-    reticle.matrix.copy(lastHit);
+    reticle.matrix.copy(hitMatrix);
 
     hitFound = true;
   } else {
@@ -200,26 +191,19 @@ function onFrame(t, frame){
   renderer.render(scene,camera);
 }
 
-function placeModels(){
+function place(){
 
   if(!hitFound) return;
 
   placed = true;
+
+  const pos = new THREE.Vector3()
+    .setFromMatrixPosition(hitMatrix);
+
+  buddha.position.set(pos.x,pos.y,pos.z);
   reticle.visible = false;
-
-  const pos = new THREE.Vector3().setFromMatrixPosition(lastHit);
-
-  buddha.position.set(pos.x-0.3,pos.y,pos.z);
-  stupa.position.set(pos.x+0.3,pos.y,pos.z);
 }
 
-function exitAR(){
-  if(xrSession) xrSession.end();
-}
-
-window.addEventListener("resize",()=>{
-  renderer.setSize(innerWidth,innerHeight);
-});
 </script>
 
 </body>
