@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -9,100 +9,116 @@
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Cinzel',serif}
 
-  #c{position:fixed;inset:0;display:none;z-index:1}
+  /* Three.js canvas — always full screen, transparent so XR camera shows through */
+  #c{
+    position:fixed;inset:0;width:100%!important;height:100%!important;
+    display:block;z-index:1;
+    background:transparent;
+  }
 
-  /* Landing */
+  /* ── Landing ── */
   #landing{
-    position:fixed;inset:0;z-index:100;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    position:fixed;inset:0;z-index:999;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
     background:radial-gradient(ellipse at 50% 30%,#1c1000,#060310 75%);
   }
-  .lotus{font-size:3.2rem;animation:gl 3s ease-in-out infinite}
-  @keyframes gl{0%,100%{filter:drop-shadow(0 0 10px #ffb940)}50%{filter:drop-shadow(0 0 30px #ffe060)}}
-  #landing h1{font-size:clamp(1.7rem,5vw,2.6rem);color:#ffd780;letter-spacing:.1em;text-align:center}
+  .lotus{font-size:3rem;animation:gl 3s ease-in-out infinite}
+  @keyframes gl{0%,100%{filter:drop-shadow(0 0 10px #ffb940)}50%{filter:drop-shadow(0 0 28px #ffe060)}}
+  #landing h1{font-size:clamp(1.6rem,5vw,2.5rem);color:#ffd780;letter-spacing:.1em;text-align:center}
   .sub{color:rgba(240,215,140,.5);font-size:.88rem;font-style:italic;text-align:center}
-  .cards{display:flex;gap:14px}
+  .cards{display:flex;gap:12px}
   .card{
     background:rgba(255,200,80,.07);border:1px solid rgba(255,200,80,.22);
-    border-radius:12px;padding:12px 16px;text-align:center;width:118px;
-    color:#ffd780;font-size:.74rem;line-height:1.5
+    border-radius:12px;padding:12px 14px;text-align:center;width:115px;
+    color:#ffd780;font-size:.73rem;line-height:1.5
   }
-  .card b{display:block;font-size:1.5rem;margin-bottom:4px}
+  .card b{display:block;font-size:1.4rem;margin-bottom:4px}
   #startBtn{
     background:linear-gradient(135deg,#b87408,#f0b940,#b87408);
     border:none;color:#160a00;font-family:'Cinzel',serif;
     font-weight:700;font-size:1rem;letter-spacing:.14em;
-    padding:14px 38px;border-radius:50px;cursor:pointer;
-    box-shadow:0 0 30px rgba(240,185,64,.4);transition:transform .2s,box-shadow .2s
+    padding:14px 36px;border-radius:50px;cursor:pointer;
+    box-shadow:0 0 28px rgba(240,185,64,.4);transition:transform .2s,box-shadow .2s
   }
-  #startBtn:hover{transform:translateY(-2px);box-shadow:0 0 48px rgba(240,185,64,.65)}
-  #startBtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
-  .note{color:rgba(200,175,110,.4);font-size:.7rem;text-align:center;max-width:270px;line-height:1.6}
+  #startBtn:hover{transform:translateY(-2px)}
+  #startBtn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  .note{color:rgba(200,175,110,.4);font-size:.68rem;text-align:center;max-width:260px;line-height:1.6}
   #errBox{
     display:none;background:rgba(180,40,40,.15);border:1px solid rgba(200,60,60,.4);
-    border-radius:10px;padding:12px 18px;color:#ffaaaa;font-size:.82rem;
-    text-align:center;max-width:300px;line-height:1.5
+    border-radius:10px;padding:12px 18px;color:#ffaaaa;font-size:.8rem;
+    text-align:center;max-width:290px;line-height:1.5
   }
 
-  /* HUD */
-  #hud{display:none;position:fixed;inset:0;z-index:50;pointer-events:none}
+  /* ── AR HUD (dom-overlay) ── */
+  #hud{
+    display:none;position:fixed;inset:0;z-index:50;
+    pointer-events:none;
+  }
   #hudTop{
     position:absolute;top:0;left:0;right:0;
-    background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent);
-    padding:14px 16px;display:flex;align-items:center;justify-content:center
+    background:linear-gradient(to bottom,rgba(0,0,0,.55),transparent);
+    padding:14px;text-align:center;
   }
-  #hudTop span{color:#ffd780;font-size:.92rem;letter-spacing:.15em;text-shadow:0 0 10px rgba(255,200,80,.5)}
+  #hudTop span{
+    color:#ffd780;font-size:.9rem;letter-spacing:.15em;
+    text-shadow:0 0 10px rgba(255,200,80,.5)
+  }
   #exitBtn{
     pointer-events:all;position:absolute;top:12px;right:14px;
     background:rgba(0,0,0,.65);border:1px solid rgba(255,200,80,.35);
-    border-radius:50%;width:42px;height:42px;color:#ffd780;font-size:1.1rem;
+    border-radius:50%;width:44px;height:44px;color:#ffd780;font-size:1.1rem;
     cursor:pointer;display:flex;align-items:center;justify-content:center;
-    backdrop-filter:blur(8px)
+    backdrop-filter:blur(8px);transition:background .2s
   }
+  #exitBtn:hover{background:rgba(200,130,0,.3)}
   #hudBot{
     position:absolute;bottom:0;left:0;right:0;
-    background:linear-gradient(to top,rgba(0,0,0,.65),transparent);
+    background:linear-gradient(to top,rgba(0,0,0,.6),transparent);
     padding:20px 16px;display:flex;flex-direction:column;align-items:center;gap:10px
   }
-  #tapBtn{
+  #placeBtn{
     pointer-events:all;
-    background:rgba(255,200,64,.16);border:1px solid rgba(255,200,64,.5);
+    background:rgba(255,200,64,.18);border:1px solid rgba(255,200,64,.55);
     color:#ffd780;font-family:'Cinzel',serif;font-size:.88rem;letter-spacing:.1em;
-    padding:11px 30px;border-radius:30px;cursor:pointer;backdrop-filter:blur(8px);
-    transition:background .2s
+    padding:12px 32px;border-radius:32px;cursor:pointer;backdrop-filter:blur(8px);
+    box-shadow:0 0 20px rgba(255,200,64,.25);transition:background .2s,transform .15s
   }
-  #tapBtn:hover{background:rgba(255,200,64,.32)}
-  #tapBtn.gone{display:none}
-  #hintTxt{color:rgba(240,215,140,.65);font-size:.78rem;font-style:italic;letter-spacing:.04em;text-align:center}
+  #placeBtn:active{transform:scale(.97)}
+  #placeBtn.hidden{display:none}
+  #hintTxt{
+    color:rgba(240,215,140,.7);font-size:.78rem;
+    font-style:italic;text-align:center;letter-spacing:.03em
+  }
+  /* side labels */
   .sLabel{
-    position:absolute;top:50%;transform:translateY(-50%);
+    display:none;position:absolute;top:50%;transform:translateY(-50%);
     background:rgba(0,0,0,.65);border:1px solid rgba(255,200,80,.3);
-    border-radius:10px;padding:8px 11px;color:#ffd780;font-size:.68rem;
-    letter-spacing:.08em;text-align:center;backdrop-filter:blur(6px);line-height:1.6;
-    display:none
+    border-radius:10px;padding:8px 12px;color:#ffd780;font-size:.67rem;
+    letter-spacing:.08em;text-align:center;backdrop-filter:blur(6px);line-height:1.7
   }
   #lblL{left:8px} #lblR{right:8px}
 
-  /* Spinner */
+  /* ── Spinner ── */
   #spinner{
     display:none;position:fixed;inset:0;z-index:200;
-    background:rgba(4,2,12,.85);
-    flex-direction:column;align-items:center;justify-content:center;gap:16px
+    background:rgba(4,2,12,.87);
+    flex-direction:column;align-items:center;justify-content:center;gap:14px
   }
   .ring{
-    width:54px;height:54px;border-radius:50%;
+    width:52px;height:52px;border-radius:50%;
     border:3px solid rgba(255,200,80,.15);border-top-color:#ffd780;
     animation:sp 1s linear infinite
   }
   @keyframes sp{to{transform:rotate(360deg)}}
-  #spinner p{color:#ffd780;font-size:.88rem;letter-spacing:.12em}
+  #spinTxt{color:#ffd780;font-size:.85rem;letter-spacing:.12em}
 </style>
 </head>
 <body>
 
+<!-- Three.js renders here — alpha:true makes camera passthrough visible -->
 <canvas id="c"></canvas>
 
-<!-- Landing -->
+<!-- Landing Screen -->
 <div id="landing">
   <div class="lotus">&#x1FAB7;</div>
   <h1>Vesak AR</h1>
@@ -112,32 +128,41 @@
     <div class="card"><b>&#x1F3DB;&#xFE0F;</b>Sri Lanka<br>Stupa</div>
   </div>
   <button id="startBtn" onclick="initAR()">&#10022; Enter AR &#10022;</button>
-  <p class="note">Requires Chrome on Android 8+ or Safari iOS 15+<br>Must be served over HTTPS</p>
+  <p class="note">Chrome on Android 8+ &nbsp;|&nbsp; Safari iOS 15+<br>Must be served over HTTPS</p>
   <div id="errBox"></div>
 </div>
 
-<!-- AR HUD -->
+<!-- DOM Overlay HUD (shown on top of camera during AR) -->
 <div id="hud">
   <div id="hudTop"><span>&#10022; Vesak AR &#10022;</span></div>
   <button id="exitBtn" onclick="exitAR()">&#x2715;</button>
   <div class="sLabel" id="lblL">&#x1F9D8;<br>Buddha<br>Statue</div>
-  <div class="sLabel" id="lblR">&#x1F3DB;&#xFE0F;<br>Sri Lanka<br>Stupa</div>
+  <div class="sLabel" id="lblR">&#x1F3DB;&#xFE0F;<br>Stupa</div>
   <div id="hudBot">
-    <button id="tapBtn" onclick="placeOnHit()">&#x1F4CD; Place Models Here</button>
-    <div id="hintTxt">Slowly move camera to detect a flat surface</div>
+    <button id="placeBtn" onclick="placeModels()">&#x1F4CD; Place Models Here</button>
+    <div id="hintTxt">Point camera at a flat surface (floor / table)</div>
   </div>
 </div>
 
-<!-- Spinner -->
-<div id="spinner"><div class="ring"></div><p id="spinTxt">Initialising…</p></div>
+<!-- Loading Spinner -->
+<div id="spinner"><div class="ring"></div><p id="spinTxt">Loading…</p></div>
 
-<!-- Three.js r128 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Three.js -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+<!-- GLTFLoader for Three 0.150 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
+/* =====================================================
+   PURE WebXR AR  –  Three.js 0.150
+   Camera passthrough = XR compositor handles it;
+   our canvas is alpha:true so it's fully transparent
+   except for the 3D objects we draw.
+===================================================== */
+
 const BUDDHA_URL = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/stone_buddha_statue.glb';
 const STUPA_URL  = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/sthupa_srilanka.glb';
-const SPACING    = 0.55;
+const SPACING    = 0.55; // metres left/right
 
 let renderer, scene, camera, clock;
 let reticle;
@@ -145,229 +170,292 @@ let buddhaGroup = null, stupaGroup = null;
 let placed = false;
 let xrSession = null;
 let hitTestSource = null;
-let currentHitPose = null;
+let lastHitMatrix = new THREE.Matrix4();
+let hitFound = false;
 
-/* helpers */
+/* ── UI helpers ── */
+const $ = id => document.getElementById(id);
 function showErr(msg){
-  const b=document.getElementById('errBox');
-  b.textContent=msg; b.style.display='block';
-  document.getElementById('startBtn').disabled=false;
+  $('errBox').textContent = msg;
+  $('errBox').style.display = 'block';
+  $('startBtn').disabled = false;
   spin(false);
 }
-function spin(show,txt){
-  document.getElementById('spinner').style.display=show?'flex':'none';
-  if(txt) document.getElementById('spinTxt').textContent=txt;
+function spin(on, txt){
+  $('spinner').style.display = on ? 'flex' : 'none';
+  if(txt) $('spinTxt').textContent = txt;
 }
+function hint(msg){ $('hintTxt').textContent = msg; }
 
-/* ══ ENTRY ══ */
+/* ═══════════════════════════
+   1. ENTRY POINT
+═══════════════════════════ */
 async function initAR(){
-  document.getElementById('startBtn').disabled=true;
-  document.getElementById('errBox').style.display='none';
+  $('startBtn').disabled = true;
+  $('errBox').style.display = 'none';
 
-  if(!navigator.xr){ showErr('WebXR not found. Try Chrome on Android or Safari iOS 15+.'); return; }
-  const ok = await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
-  if(!ok){ showErr('Immersive AR not supported on this device.'); return; }
+  if(!navigator.xr){
+    showErr('WebXR not available. Use Chrome on Android or Safari on iOS 15+.');
+    return;
+  }
+  const supported = await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
+  if(!supported){
+    showErr('Immersive AR not supported on this device/browser.');
+    return;
+  }
 
   spin(true,'Setting up renderer…');
-  setupThreeJS();
+  setupRenderer();
+
   spin(true,'Loading 3D models…');
-  await loadGLTFLoader();
-  await loadModels();
+  await loadBothModels();
+
   spin(false);
-  await launchXR();
+  await startXR();
 }
 
-/* ══ THREE.JS ══ */
-function setupThreeJS(){
+/* ═══════════════════════════
+   2. THREE.JS RENDERER
+   KEY: alpha:true + premultipliedAlpha:false
+   so the WebXR compositor can show camera behind
+═══════════════════════════ */
+function setupRenderer(){
   clock = new THREE.Clock();
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 100);
 
-  const canvas = document.getElementById('c');
-  renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+  renderer = new THREE.WebGLRenderer({
+    canvas: $('c'),
+    alpha: true,                  // transparent canvas — camera shows through
+    antialias: true,
+    premultipliedAlpha: false     // required for correct XR compositing
+  });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.physicallyCorrectLights = true;
+  // CRITICAL: do NOT set a clear colour — let it stay 0,0,0,0
   renderer.setClearColor(0x000000, 0);
+  renderer.autoClear = true;
 
-  // lights
-  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-  const sun = new THREE.DirectionalLight(0xfffbe0, 1.4);
-  sun.position.set(2, 4, 3); scene.add(sun);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x806040, 0.5));
+  // Lighting that works in real-world scenes
+  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+  const dir = new THREE.DirectionalLight(0xfffbe0, 1.6);
+  dir.position.set(1, 3, 2);
+  scene.add(dir);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x806040, 0.6));
 
-  // reticle
-  const geo = new THREE.RingGeometry(0.06, 0.11, 32);
-  geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-  reticle = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:0xffd060,side:THREE.DoubleSide,transparent:true,opacity:0.9}));
+  // Surface-detection reticle ring
+  const rGeo = new THREE.RingGeometry(0.06, 0.12, 32);
+  // Rotate to lie flat on floor
+  rGeo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+  reticle = new THREE.Mesh(rGeo, new THREE.MeshBasicMaterial({
+    color: 0xffd060, side: THREE.DoubleSide,
+    transparent: true, opacity: 0.88
+  }));
   reticle.matrixAutoUpdate = false;
   reticle.visible = false;
   scene.add(reticle);
 
-  window.addEventListener('resize',()=>{
+  window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
   });
 }
 
-/* ══ GLTF LOADER ══ */
-function loadGLTFLoader(){
-  return new Promise((res,rej)=>{
-    if(THREE.GLTFLoader){ res(); return; }
-    const s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-    s.onload=res; s.onerror=rej;
-    document.head.appendChild(s);
-  });
-}
-
-/* ══ LOAD MODELS ══ */
-function loadSingle(url){
-  return new Promise(res=>{
+/* ═══════════════════════════
+   3. LOAD GLB MODELS
+═══════════════════════════ */
+function loadGLB(url){
+  return new Promise(resolve => {
     const loader = new THREE.GLTFLoader();
-    loader.load(url, gltf=>{
+    loader.load(url, gltf => {
       const root = gltf.scene;
-      // normalise size to ~0.45m
+      // Auto-scale so tallest dimension = 0.45m
       const box = new THREE.Box3().setFromObject(root);
-      const sz = new THREE.Vector3(); box.getSize(sz);
-      const s = 0.45 / Math.max(sz.x,sz.y,sz.z);
+      const size = new THREE.Vector3(); box.getSize(size);
+      const s = 0.45 / Math.max(size.x, size.y, size.z);
       root.scale.setScalar(s);
-      // sit on floor
+      // Shift so model sits ON the floor (y=0)
       const box2 = new THREE.Box3().setFromObject(root);
       root.position.y = -box2.min.y;
-      const g = new THREE.Group(); g.add(root);
-      g.visible = false; scene.add(g);
-      res(g);
-    }, undefined, err=>{
-      console.warn('GLB load failed', url, err);
-      // fallback box
-      const h=0.5, geo=new THREE.BoxGeometry(0.25,h,0.25);
-      const mat=new THREE.MeshStandardMaterial({color:0xc8a060,roughness:0.7});
-      const mesh=new THREE.Mesh(geo,mat); mesh.position.y=h/2;
-      const g=new THREE.Group(); g.add(mesh);
-      g.visible=false; scene.add(g); res(g);
+
+      const group = new THREE.Group();
+      group.add(root);
+      group.visible = false;
+      scene.add(group);
+      resolve(group);
+    },
+    undefined, // progress
+    err => {
+      console.warn('GLB load error:', url, err);
+      // Fallback: golden box so something shows
+      const h = 0.45;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, h, 0.22),
+        new THREE.MeshStandardMaterial({ color: 0xc8902a, roughness: 0.6, metalness: 0.2 })
+      );
+      mesh.position.y = h / 2;
+      const group = new THREE.Group();
+      group.add(mesh);
+      group.visible = false;
+      scene.add(group);
+      resolve(group);
     });
   });
 }
 
-async function loadModels(){
+async function loadBothModels(){
   [buddhaGroup, stupaGroup] = await Promise.all([
-    loadSingle(BUDDHA_URL),
-    loadSingle(STUPA_URL)
+    loadGLB(BUDDHA_URL),
+    loadGLB(STUPA_URL)
   ]);
 }
 
-/* ══ LAUNCH XR ══ */
-async function launchXR(){
-  try{
-    xrSession = await navigator.xr.requestSession('immersive-ar',{
-      requiredFeatures:['hit-test'],
-      optionalFeatures:['dom-overlay','local-floor'],
-      domOverlay:{root:document.getElementById('hud')}
+/* ═══════════════════════════
+   4. START XR SESSION
+═══════════════════════════ */
+async function startXR(){
+  try {
+    xrSession = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay', 'local-floor'],
+      domOverlay: { root: $('hud') }
     });
-  } catch(e){ showErr('AR session failed: '+e.message); return; }
+  } catch(e){
+    showErr('Could not start AR: ' + e.message);
+    return;
+  }
 
-  document.getElementById('c').style.display='block';
-  document.getElementById('landing').style.display='none';
-  document.getElementById('hud').style.display='block';
-  document.getElementById('tapBtn').classList.remove('gone');
+  // Show canvas + HUD, hide landing
+  $('c').style.display = 'block';
+  $('landing').style.display = 'none';
+  $('hud').style.display = 'block';
+  $('placeBtn').classList.remove('hidden');
 
+  // Tell Three.js to use local reference space
   renderer.xr.setReferenceSpaceType('local');
   await renderer.xr.setSession(xrSession);
-  xrSession.addEventListener('end', onEnd);
 
-  // hit-test source
+  xrSession.addEventListener('end', onSessionEnd);
+
+  // Set up hit-test against viewer space (where camera is pointing)
   const viewerSpace = await xrSession.requestReferenceSpace('viewer');
-  hitTestSource = await xrSession.requestHitTestSource({space:viewerSpace});
+  hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
 
   placed = false;
-  currentHitPose = null;
+  hitFound = false;
+  hint('Point camera at a flat surface (floor / table)');
+
   renderer.setAnimationLoop(onFrame);
 }
 
-/* ══ RENDER LOOP ══ */
+/* ═══════════════════════════
+   5. XR RENDER LOOP
+═══════════════════════════ */
 function onFrame(time, frame){
   if(!frame) return;
+
   const dt = clock.getDelta();
 
-  // gentle rotation
-  if(buddhaGroup && buddhaGroup.visible) buddhaGroup.rotation.y += dt*0.3;
-  if(stupaGroup  && stupaGroup.visible)  stupaGroup.rotation.y  += dt*0.2;
+  // Slow Y-axis rotation for placed models
+  if(buddhaGroup && buddhaGroup.visible) buddhaGroup.rotation.y += dt * 0.28;
+  if(stupaGroup  && stupaGroup.visible)  stupaGroup.rotation.y  += dt * 0.20;
 
-  // hit test
+  // Hit-test: find real-world surface
   if(!placed && hitTestSource){
     const refSpace = renderer.xr.getReferenceSpace();
-    const hits = frame.getHitTestResults(hitTestSource);
-    if(hits.length){
-      const pose = hits[0].getPose(refSpace);
+    const results  = frame.getHitTestResults(hitTestSource);
+
+    if(results.length > 0){
+      const hit  = results[0];
+      const pose = hit.getPose(refSpace);
       if(pose){
-        currentHitPose = pose;
+        hitFound = true;
+        lastHitMatrix.fromArray(pose.transform.matrix);
+
         reticle.visible = true;
-        reticle.matrix.fromArray(pose.transform.matrix);
-        document.getElementById('hintTxt').textContent='Surface found! Tap Place Models.';
+        reticle.matrix.copy(lastHitMatrix);
+
+        hint('Surface detected! Tap "Place Models Here"');
       }
     } else {
-      reticle.visible=false;
-      currentHitPose=null;
-      document.getElementById('hintTxt').textContent='Slowly scan a flat surface…';
+      reticle.visible = false;
+      hitFound = false;
+      hint('Point camera at a flat surface (floor / table)');
     }
   }
 
   renderer.render(scene, camera);
 }
 
-/* ══ PLACE ══ */
-function placeOnHit(){
-  if(!currentHitPose){
-    document.getElementById('hintTxt').textContent='No surface yet — keep scanning…';
+/* ═══════════════════════════
+   6. PLACE MODELS
+═══════════════════════════ */
+function placeModels(){
+  if(!hitFound){
+    hint('No surface detected yet — keep scanning…');
     return;
   }
-  placed=true;
-  reticle.visible=false;
-  document.getElementById('tapBtn').classList.add('gone');
-  document.getElementById('hintTxt').textContent='Walk around to explore both models!';
-  document.getElementById('lblL').style.display='block';
-  document.getElementById('lblR').style.display='block';
 
-  // extract position + orientation from hit pose matrix
-  const m = new THREE.Matrix4().fromArray(currentHitPose.transform.matrix);
-  const pos = new THREE.Vector3().setFromMatrixPosition(m);
-  const quat = new THREE.Quaternion().setFromRotationMatrix(m);
+  placed = true;
+  reticle.visible = false;
+  $('placeBtn').classList.add('hidden');
+  hint('Walk around to explore both models!');
+  $('lblL').style.display = 'block';
+  $('lblR').style.display = 'block';
 
-  // right vector in hit-surface local space
-  const right = new THREE.Vector3(1,0,0).applyQuaternion(quat);
+  // Extract world position + Y rotation from the hit matrix
+  const pos  = new THREE.Vector3().setFromMatrixPosition(lastHitMatrix);
+  const quat = new THREE.Quaternion().setFromRotationMatrix(lastHitMatrix);
+  const yRot = new THREE.Euler().setFromQuaternion(quat, 'YXZ').y;
+
+  // Right-hand world axis aligned with surface orientation
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(quat);
 
   if(buddhaGroup){
-    buddhaGroup.position.copy(pos).addScaledVector(right, -SPACING);
-    buddhaGroup.rotation.y = new THREE.Euler().setFromQuaternion(quat,'YXZ').y;
-    buddhaGroup.visible=true;
+    // Left = Buddha
+    const p = pos.clone().addScaledVector(right, -SPACING);
+    buddhaGroup.position.copy(p);
+    buddhaGroup.rotation.y = yRot;
+    buddhaGroup.visible = true;
   }
   if(stupaGroup){
-    stupaGroup.position.copy(pos).addScaledVector(right, SPACING);
-    stupaGroup.rotation.y = new THREE.Euler().setFromQuaternion(quat,'YXZ').y;
-    stupaGroup.visible=true;
+    // Right = Stupa
+    const p = pos.clone().addScaledVector(right, SPACING);
+    stupaGroup.position.copy(p);
+    stupaGroup.rotation.y = yRot;
+    stupaGroup.visible = true;
   }
 }
 
-/* ══ EXIT ══ */
+/* ═══════════════════════════
+   7. EXIT SESSION
+═══════════════════════════ */
 function exitAR(){
   if(xrSession) xrSession.end();
 }
-function onEnd(){
-  xrSession=null; hitTestSource=null;
+
+function onSessionEnd(){
+  xrSession    = null;
+  hitTestSource = null;
+  hitFound     = false;
+  placed       = false;
+
   renderer.setAnimationLoop(null);
-  if(buddhaGroup){ buddhaGroup.visible=false; }
-  if(stupaGroup){ stupaGroup.visible=false; }
-  placed=false; reticle.visible=false; currentHitPose=null;
-  document.getElementById('c').style.display='none';
-  document.getElementById('hud').style.display='none';
-  document.getElementById('lblL').style.display='none';
-  document.getElementById('lblR').style.display='none';
-  document.getElementById('landing').style.display='flex';
-  document.getElementById('startBtn').disabled=false;
+
+  if(buddhaGroup) buddhaGroup.visible = false;
+  if(stupaGroup)  stupaGroup.visible  = false;
+  reticle.visible = false;
+
+  $('c').style.display = 'none';
+  $('hud').style.display = 'none';
+  $('lblL').style.display = 'none';
+  $('lblR').style.display = 'none';
+  $('landing').style.display = 'flex';
+  $('startBtn').disabled = false;
 }
 </script>
 </body>
