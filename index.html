@@ -1,419 +1,374 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
-  <title>Vesak AR</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>Vesak AR</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Cinzel',serif}
 
-    /* A-Frame canvas must be visible below everything */
-    a-scene { display:block; width:100%; height:100%; }
+  #c{position:fixed;inset:0;display:none;z-index:1}
 
-    /* ───── Landing overlay ───── */
-    #landing {
-      position:fixed; inset:0; z-index:999;
-      display:flex; flex-direction:column;
-      align-items:center; justify-content:center; gap:16px;
-      background:radial-gradient(ellipse at 50% 30%, #1a0e00, #05030a 80%);
-      font-family:'Cinzel',serif;
-    }
-    .glow { font-size:3rem; animation:pg 2.5s ease-in-out infinite; }
-    @keyframes pg{0%,100%{filter:drop-shadow(0 0 12px #ffb940)}50%{filter:drop-shadow(0 0 32px #ffe080)}}
-    #landing h1 { font-size:clamp(1.6rem,5vw,2.8rem); color:#ffd780; text-align:center; letter-spacing:.1em; }
-    #landing p  { color:rgba(240,220,160,.6); font-size:.9rem; font-style:italic; text-align:center; }
-    .cards { display:flex; gap:14px; }
-    .card {
-      background:rgba(255,200,80,.07); border:1px solid rgba(255,200,80,.25);
-      border-radius:12px; padding:12px 16px; text-align:center; width:120px;
-      color:#ffd780; font-size:.75rem;
-    }
-    .card span { display:block; font-size:1.6rem; margin-bottom:4px; }
-    #ar-btn {
-      background:linear-gradient(135deg,#c8860a,#f0b940,#c8860a);
-      border:none; color:#1a0a00; font-family:'Cinzel',serif;
-      font-weight:700; font-size:1rem; letter-spacing:.14em;
-      padding:14px 36px; border-radius:50px; cursor:pointer;
-      box-shadow:0 0 28px rgba(255,185,64,.4);
-      transition:transform .2s,box-shadow .2s;
-    }
-    #ar-btn:hover { transform:translateY(-2px); box-shadow:0 0 44px rgba(255,185,64,.6); }
-    #err {
-      display:none; background:rgba(200,50,50,.15);
-      border:1px solid rgba(200,50,50,.4); border-radius:10px;
-      padding:12px 18px; color:#ffaaaa; font-size:.85rem;
-      text-align:center; max-width:300px;
-    }
+  /* Landing */
+  #landing{
+    position:fixed;inset:0;z-index:100;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background:radial-gradient(ellipse at 50% 30%,#1c1000,#060310 75%);
+  }
+  .lotus{font-size:3.2rem;animation:gl 3s ease-in-out infinite}
+  @keyframes gl{0%,100%{filter:drop-shadow(0 0 10px #ffb940)}50%{filter:drop-shadow(0 0 30px #ffe060)}}
+  #landing h1{font-size:clamp(1.7rem,5vw,2.6rem);color:#ffd780;letter-spacing:.1em;text-align:center}
+  .sub{color:rgba(240,215,140,.5);font-size:.88rem;font-style:italic;text-align:center}
+  .cards{display:flex;gap:14px}
+  .card{
+    background:rgba(255,200,80,.07);border:1px solid rgba(255,200,80,.22);
+    border-radius:12px;padding:12px 16px;text-align:center;width:118px;
+    color:#ffd780;font-size:.74rem;line-height:1.5
+  }
+  .card b{display:block;font-size:1.5rem;margin-bottom:4px}
+  #startBtn{
+    background:linear-gradient(135deg,#b87408,#f0b940,#b87408);
+    border:none;color:#160a00;font-family:'Cinzel',serif;
+    font-weight:700;font-size:1rem;letter-spacing:.14em;
+    padding:14px 38px;border-radius:50px;cursor:pointer;
+    box-shadow:0 0 30px rgba(240,185,64,.4);transition:transform .2s,box-shadow .2s
+  }
+  #startBtn:hover{transform:translateY(-2px);box-shadow:0 0 48px rgba(240,185,64,.65)}
+  #startBtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .note{color:rgba(200,175,110,.4);font-size:.7rem;text-align:center;max-width:270px;line-height:1.6}
+  #errBox{
+    display:none;background:rgba(180,40,40,.15);border:1px solid rgba(200,60,60,.4);
+    border-radius:10px;padding:12px 18px;color:#ffaaaa;font-size:.82rem;
+    text-align:center;max-width:300px;line-height:1.5
+  }
 
-    /* ───── AR HUD ───── */
-    #hud {
-      display:none; position:fixed; inset:0; z-index:50;
-      pointer-events:none;
-    }
-    #hud-top {
-      position:absolute; top:0; left:0; right:0;
-      background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent);
-      padding:14px; text-align:center;
-    }
-    #hud-top span {
-      font-family:'Cinzel',serif; color:#ffd780;
-      font-size:.95rem; letter-spacing:.14em;
-      text-shadow:0 0 12px rgba(255,200,80,.5);
-    }
-    #hud-bot {
-      position:absolute; bottom:0; left:0; right:0;
-      background:linear-gradient(to top,rgba(0,0,0,.6),transparent);
-      padding:18px; text-align:center;
-    }
-    #hint {
-      color:rgba(240,220,160,.7); font-size:.82rem;
-      font-style:italic; letter-spacing:.04em;
-    }
-    #place-btn {
-      pointer-events:all; margin-bottom:10px;
-      background:rgba(255,200,80,.18); border:1px solid rgba(255,200,80,.45);
-      color:#ffd780; font-family:'Cinzel',serif; font-size:.85rem;
-      letter-spacing:.1em; padding:10px 28px; border-radius:30px;
-      cursor:pointer; backdrop-filter:blur(8px);
-      transition:background .2s;
-    }
-    #place-btn:hover { background:rgba(255,200,80,.3); }
-    #exit-btn {
-      pointer-events:all;
-      position:absolute; top:14px; right:14px;
-      background:rgba(0,0,0,.6); border:1px solid rgba(255,200,80,.35);
-      border-radius:50%; width:40px; height:40px;
-      color:#ffd780; font-size:1.1rem; cursor:pointer;
-      display:flex; align-items:center; justify-content:center;
-      backdrop-filter:blur(8px);
-    }
-    .side-label {
-      position:absolute; top:50%;
-      transform:translateY(-50%);
-      background:rgba(0,0,0,.65); border:1px solid rgba(255,200,80,.35);
-      border-radius:10px; padding:8px 12px;
-      font-family:'Cinzel',serif; font-size:.68rem; letter-spacing:.09em;
-      color:#ffd780; text-align:center; backdrop-filter:blur(6px);
-    }
-    #lbl-l { left:8px; }
-    #lbl-r { right:8px; }
+  /* HUD */
+  #hud{display:none;position:fixed;inset:0;z-index:50;pointer-events:none}
+  #hudTop{
+    position:absolute;top:0;left:0;right:0;
+    background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent);
+    padding:14px 16px;display:flex;align-items:center;justify-content:center
+  }
+  #hudTop span{color:#ffd780;font-size:.92rem;letter-spacing:.15em;text-shadow:0 0 10px rgba(255,200,80,.5)}
+  #exitBtn{
+    pointer-events:all;position:absolute;top:12px;right:14px;
+    background:rgba(0,0,0,.65);border:1px solid rgba(255,200,80,.35);
+    border-radius:50%;width:42px;height:42px;color:#ffd780;font-size:1.1rem;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(8px)
+  }
+  #hudBot{
+    position:absolute;bottom:0;left:0;right:0;
+    background:linear-gradient(to top,rgba(0,0,0,.65),transparent);
+    padding:20px 16px;display:flex;flex-direction:column;align-items:center;gap:10px
+  }
+  #tapBtn{
+    pointer-events:all;
+    background:rgba(255,200,64,.16);border:1px solid rgba(255,200,64,.5);
+    color:#ffd780;font-family:'Cinzel',serif;font-size:.88rem;letter-spacing:.1em;
+    padding:11px 30px;border-radius:30px;cursor:pointer;backdrop-filter:blur(8px);
+    transition:background .2s
+  }
+  #tapBtn:hover{background:rgba(255,200,64,.32)}
+  #tapBtn.gone{display:none}
+  #hintTxt{color:rgba(240,215,140,.65);font-size:.78rem;font-style:italic;letter-spacing:.04em;text-align:center}
+  .sLabel{
+    position:absolute;top:50%;transform:translateY(-50%);
+    background:rgba(0,0,0,.65);border:1px solid rgba(255,200,80,.3);
+    border-radius:10px;padding:8px 11px;color:#ffd780;font-size:.68rem;
+    letter-spacing:.08em;text-align:center;backdrop-filter:blur(6px);line-height:1.6;
+    display:none
+  }
+  #lblL{left:8px} #lblR{right:8px}
 
-    /* fallback 3D viewer (no WebXR) */
-    #fallback-view {
-      display:none; position:fixed; inset:0; z-index:800;
-      background:#111; flex-direction:column;
-      align-items:center; justify-content:flex-start;
-    }
-    #fallback-view h2 {
-      font-family:'Cinzel',serif; color:#ffd780;
-      font-size:1rem; padding:14px; letter-spacing:.1em;
-    }
-    #fallback-view a-scene { width:100%; flex:1; }
-    #back-btn {
-      position:fixed; top:12px; left:12px; z-index:900;
-      background:rgba(0,0,0,.7); border:1px solid rgba(255,200,80,.4);
-      border-radius:20px; padding:8px 18px;
-      color:#ffd780; font-family:'Cinzel',serif; font-size:.8rem;
-      cursor:pointer;
-    }
-  </style>
+  /* Spinner */
+  #spinner{
+    display:none;position:fixed;inset:0;z-index:200;
+    background:rgba(4,2,12,.85);
+    flex-direction:column;align-items:center;justify-content:center;gap:16px
+  }
+  .ring{
+    width:54px;height:54px;border-radius:50%;
+    border:3px solid rgba(255,200,80,.15);border-top-color:#ffd780;
+    animation:sp 1s linear infinite
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #spinner p{color:#ffd780;font-size:.88rem;letter-spacing:.12em}
+</style>
 </head>
 <body>
 
-<!-- ═══════ LANDING ═══════ -->
+<canvas id="c"></canvas>
+
+<!-- Landing -->
 <div id="landing">
-  <div class="glow">🪷</div>
+  <div class="lotus">&#x1FAB7;</div>
   <h1>Vesak AR</h1>
-  <p>Sacred Monuments of Sri Lanka</p>
+  <p class="sub">Sacred Monuments of Sri Lanka</p>
   <div class="cards">
-    <div class="card"><span>🧘</span>Buddha<br>Statue</div>
-    <div class="card"><span>🏛️</span>Sri Lanka<br>Stupa</div>
+    <div class="card"><b>&#x1F9D8;</b>Buddha<br>Statue</div>
+    <div class="card"><b>&#x1F3DB;&#xFE0F;</b>Sri Lanka<br>Stupa</div>
   </div>
-  <button id="ar-btn" onclick="startAR()">✦ Enter AR ✦</button>
-  <p style="color:rgba(200,180,120,.45);font-size:.72rem;text-align:center;max-width:280px;">
-    Requires Chrome on Android or Safari on iOS 15+<br>with WebXR / AR support
-  </p>
-  <div id="err"></div>
+  <button id="startBtn" onclick="initAR()">&#10022; Enter AR &#10022;</button>
+  <p class="note">Requires Chrome on Android 8+ or Safari iOS 15+<br>Must be served over HTTPS</p>
+  <div id="errBox"></div>
 </div>
 
-<!-- ═══════ AR HUD ═══════ -->
+<!-- AR HUD -->
 <div id="hud">
-  <div id="hud-top"><span>✦ Vesak AR ✦</span></div>
-  <button id="exit-btn" onclick="endAR()">✕</button>
-  <div class="side-label" id="lbl-l">🧘<br>Buddha</div>
-  <div class="side-label" id="lbl-r">🏛️<br>Stupa</div>
-  <div id="hud-bot">
-    <button id="place-btn" onclick="placeModels()">📍 Place Models Here</button>
-    <div id="hint">Move camera slowly · Tap to place both models</div>
+  <div id="hudTop"><span>&#10022; Vesak AR &#10022;</span></div>
+  <button id="exitBtn" onclick="exitAR()">&#x2715;</button>
+  <div class="sLabel" id="lblL">&#x1F9D8;<br>Buddha<br>Statue</div>
+  <div class="sLabel" id="lblR">&#x1F3DB;&#xFE0F;<br>Sri Lanka<br>Stupa</div>
+  <div id="hudBot">
+    <button id="tapBtn" onclick="placeOnHit()">&#x1F4CD; Place Models Here</button>
+    <div id="hintTxt">Slowly move camera to detect a flat surface</div>
   </div>
 </div>
 
-<!-- ═══════ FALLBACK 3D VIEWER ═══════ -->
-<div id="fallback-view">
-  <button id="back-btn" onclick="showLanding()">← Back</button>
-</div>
+<!-- Spinner -->
+<div id="spinner"><div class="ring"></div><p id="spinTxt">Initialising…</p></div>
 
-<!-- ═══════ MAIN A-FRAME SCENE (always in DOM) ═══════ -->
-<a-scene
-  id="main-scene"
-  style="display:none; position:fixed; inset:0; z-index:10;"
-  webxr="requiredFeatures: hit-test; optionalFeatures: dom-overlay; overlayElement: #hud;"
-  renderer="colorManagement:true; physicallyCorrectLights:true;"
-  vr-mode-ui="enabled:false"
-  loading-screen="enabled:false"
->
-  <a-assets timeout="60000">
-    <a-asset-item id="mdl-buddha" src="https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/stone_buddha_statue.glb" crossorigin="anonymous"></a-asset-item>
-    <a-asset-item id="mdl-stupa"  src="https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/sthupa_srilanka.glb"     crossorigin="anonymous"></a-asset-item>
-  </a-assets>
+<!-- Three.js r128 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-  <!-- Lighting -->
-  <a-light type="ambient"      color="#fff" intensity="0.7"></a-light>
-  <a-light type="directional"  color="#fff" intensity="1.2" position="1 3 2"></a-light>
-  <a-light type="hemisphere"   color="#fffbe0" ground-color="#806040" intensity="0.5"></a-light>
-
-  <!-- Buddha statue – placed to the LEFT via JS -->
-  <a-entity id="buddha-root" visible="false">
-    <a-entity
-      id="buddha-model"
-      gltf-model="#mdl-buddha"
-      scale="0.6 0.6 0.6"
-      position="0 0 0"
-      animation="property:rotation; from:0 0 0; to:0 360 0; loop:true; dur:14000; easing:linear"
-    ></a-entity>
-  </a-entity>
-
-  <!-- Stupa – placed to the RIGHT via JS -->
-  <a-entity id="stupa-root" visible="false">
-    <a-entity
-      id="stupa-model"
-      gltf-model="#mdl-stupa"
-      scale="0.6 0.6 0.6"
-      position="0 0 0"
-      animation="property:rotation; from:0 0 0; to:0 360 0; loop:true; dur:18000; easing:linear"
-    ></a-entity>
-  </a-entity>
-
-  <!-- Hit-test reticle -->
-  <a-entity id="reticle" visible="false">
-    <a-ring color="#ffd780" radius-inner="0.04" radius-outer="0.08"
-            rotation="-90 0 0" material="side:double; opacity:0.85">
-    </a-ring>
-  </a-entity>
-
-  <a-camera id="cam" position="0 1.6 0"></a-camera>
-</a-scene>
-
-<!-- ═══════ SCRIPTS ═══════ -->
 <script>
-  const SPACING = 0.55; // metres between models
-  let placed   = false;
-  let hitPos   = { x:0, y:0, z:-1 };
-  let xrSession = null;
-  let xrRefSpace = null;
-  let hitTestSource = null;
-  let animFrameId  = null;
+const BUDDHA_URL = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/stone_buddha_statue.glb';
+const STUPA_URL  = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/sthupa_srilanka.glb';
+const SPACING    = 0.55;
 
-  /* ── helpers ── */
-  function showErr(msg) {
-    const el = document.getElementById('err');
-    el.textContent = msg; el.style.display = 'block';
-  }
-  function showLanding() {
-    document.getElementById('landing').style.display = 'flex';
-    document.getElementById('hud').style.display = 'none';
-    document.getElementById('main-scene').style.display = 'none';
-    document.getElementById('fallback-view').style.display = 'none';
-  }
+let renderer, scene, camera, clock;
+let reticle;
+let buddhaGroup = null, stupaGroup = null;
+let placed = false;
+let xrSession = null;
+let hitTestSource = null;
+let currentHitPose = null;
 
-  /* ── Start AR ── */
-  async function startAR() {
-    // WebXR AR path
-    if (navigator.xr) {
-      const supported = await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
-      if (supported) { launchWebXR(); return; }
-    }
-    // AR.js fallback (marker-based)
-    launchARjs();
-  }
+/* helpers */
+function showErr(msg){
+  const b=document.getElementById('errBox');
+  b.textContent=msg; b.style.display='block';
+  document.getElementById('startBtn').disabled=false;
+  spin(false);
+}
+function spin(show,txt){
+  document.getElementById('spinner').style.display=show?'flex':'none';
+  if(txt) document.getElementById('spinTxt').textContent=txt;
+}
 
-  /* ══════════════════════════════
-     PATH A — Native WebXR
-  ══════════════════════════════ */
-  function launchWebXR() {
-    const scene = document.getElementById('main-scene');
-    scene.style.display = 'block';
+/* ══ ENTRY ══ */
+async function initAR(){
+  document.getElementById('startBtn').disabled=true;
+  document.getElementById('errBox').style.display='none';
 
-    scene.addEventListener('loaded', async () => {
-      try {
-        const session = await navigator.xr.requestSession('immersive-ar', {
-          requiredFeatures: ['hit-test'],
-          optionalFeatures: ['dom-overlay'],
-          domOverlay: { root: document.getElementById('hud') }
-        });
-        xrSession = session;
-        document.getElementById('landing').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
+  if(!navigator.xr){ showErr('WebXR not found. Try Chrome on Android or Safari iOS 15+.'); return; }
+  const ok = await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
+  if(!ok){ showErr('Immersive AR not supported on this device.'); return; }
 
-        const renderer = scene.renderer;
-        renderer.xr.enabled = true;
-        renderer.xr.setReferenceSpaceType('local');
-        await renderer.xr.setSession(session);
+  spin(true,'Setting up renderer…');
+  setupThreeJS();
+  spin(true,'Loading 3D models…');
+  await loadGLTFLoader();
+  await loadModels();
+  spin(false);
+  await launchXR();
+}
 
-        xrRefSpace = await session.requestReferenceSpace('local');
-        const viewerRefSpace = await session.requestReferenceSpace('viewer');
-        hitTestSource = await session.requestHitTestSource({ space: viewerRefSpace });
+/* ══ THREE.JS ══ */
+function setupThreeJS(){
+  clock = new THREE.Clock();
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 100);
 
-        session.addEventListener('end', () => {
-          hitTestSource = null; xrSession = null;
-          showLanding();
-        });
+  const canvas = document.getElementById('c');
+  renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.physicallyCorrectLights = true;
+  renderer.setClearColor(0x000000, 0);
 
-        renderer.setAnimationLoop((time, frame) => {
-          if (!frame) return;
-          if (hitTestSource && !placed) {
-            const hits = frame.getHitTestResults(hitTestSource);
-            const reticle = document.getElementById('reticle');
-            if (hits.length) {
-              const pose = hits[0].getPose(xrRefSpace);
-              const p = pose.transform.position;
-              hitPos = { x:p.x, y:p.y, z:p.z };
-              reticle.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
-              reticle.setAttribute('visible', true);
-            } else {
-              reticle.setAttribute('visible', false);
-            }
-          }
-        });
-      } catch(e) {
-        console.error(e);
-        scene.style.display = 'none';
-        showErr('WebXR failed: ' + e.message + '. Trying AR.js…');
-        setTimeout(launchARjs, 800);
-      }
-    }, { once: true });
-  }
+  // lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const sun = new THREE.DirectionalLight(0xfffbe0, 1.4);
+  sun.position.set(2, 4, 3); scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x806040, 0.5));
 
-  function placeModels() {
-    placed = true;
-    document.getElementById('reticle').setAttribute('visible', false);
-    document.getElementById('place-btn').style.display = 'none';
-    document.getElementById('hint').textContent = 'Models placed! Walk around to explore.';
+  // reticle
+  const geo = new THREE.RingGeometry(0.06, 0.11, 32);
+  geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+  reticle = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:0xffd060,side:THREE.DoubleSide,transparent:true,opacity:0.9}));
+  reticle.matrixAutoUpdate = false;
+  reticle.visible = false;
+  scene.add(reticle);
 
-    const buddhaRoot = document.getElementById('buddha-root');
-    const stupaRoot  = document.getElementById('stupa-root');
+  window.addEventListener('resize',()=>{
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+  });
+}
 
-    // Left = negative X, Right = positive X
-    buddhaRoot.setAttribute('position', `${hitPos.x - SPACING} ${hitPos.y} ${hitPos.z}`);
-    stupaRoot .setAttribute('position', `${hitPos.x + SPACING} ${hitPos.y} ${hitPos.z}`);
-
-    buddhaRoot.setAttribute('visible', true);
-    stupaRoot .setAttribute('visible', true);
-  }
-
-  function endAR() {
-    if (xrSession) { xrSession.end(); }
-    document.getElementById('main-scene').style.display = 'none';
-    document.getElementById('hud').style.display = 'none';
-    placed = false;
-    showLanding();
-  }
-
-  /* ══════════════════════════════
-     PATH B — AR.js (marker-based)
-     Used when WebXR not available
-  ══════════════════════════════ */
-  function launchARjs() {
-    // Dynamically inject AR.js scene
-    document.getElementById('landing').style.display = 'none';
-
-    const fv = document.getElementById('fallback-view');
-    fv.style.display = 'flex';
-    fv.style.flexDirection = 'column';
-
-    // Build an AR.js scene inside fallback-view
-    fv.innerHTML = `
-      <button id="back-btn" onclick="showLanding()" style="
-        position:fixed;top:12px;left:12px;z-index:900;
-        background:rgba(0,0,0,.75);border:1px solid rgba(255,200,80,.4);
-        border-radius:20px;padding:8px 18px;color:#ffd780;
-        font-family:'Cinzel',serif;font-size:.8rem;cursor:pointer;letter-spacing:.06em;">
-        ← Back
-      </button>
-      <div id="arjs-info" style="
-        position:fixed;bottom:0;left:0;right:0;z-index:900;
-        background:rgba(0,0,0,.65);padding:12px;text-align:center;
-        font-family:'Cinzel',serif;color:#ffd780;font-size:.75rem;letter-spacing:.08em;">
-        🧘 Hiro marker = Buddha &nbsp;|&nbsp; 🏛️ Kanji marker = Stupa
-      </div>`;
-
-    // Load A-Frame + AR.js then inject scene
-    loadScript('https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js', () => {
-      loadScript('https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js', buildARjsScene);
-    });
-  }
-
-  function buildARjsScene() {
-    const container = document.getElementById('fallback-view');
-
-    // Must set body/html to 100% for AR.js canvas
-    document.documentElement.style.cssText = 'width:100%;height:100%;overflow:hidden;';
-    document.body.style.cssText = 'width:100%;height:100%;overflow:hidden;margin:0;';
-
-    const sceneHtml = `
-<a-scene
-  arjs="sourceType:webcam; debugUIEnabled:false; detectionMode:mono_and_matrix; matrixCodeType:3x3;"
-  renderer="colorManagement:true; logarithmicDepthBuffer:true;"
-  vr-mode-ui="enabled:false"
-  loading-screen="enabled:false"
-  style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;"
->
-  <a-assets timeout="60000">
-    <a-asset-item id="arjs-buddha" src="https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/stone_buddha_statue.glb" crossorigin="anonymous"></a-asset-item>
-    <a-asset-item id="arjs-stupa"  src="https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/sthupa_srilanka.glb"     crossorigin="anonymous"></a-asset-item>
-  </a-assets>
-
-  <a-light type="ambient"     color="#fff" intensity="0.8"></a-light>
-  <a-light type="directional" color="#fff" intensity="1.5" position="1 3 2"></a-light>
-
-  <!-- Buddha on HIRO marker -->
-  <a-marker preset="hiro">
-    <a-entity
-      gltf-model="#arjs-buddha"
-      scale="0.5 0.5 0.5"
-      position="0 0 0"
-      animation="property:rotation;from:0 0 0;to:0 360 0;loop:true;dur:12000;easing:linear">
-    </a-entity>
-  </a-marker>
-
-  <!-- Stupa on KANJI marker -->
-  <a-marker preset="kanji">
-    <a-entity
-      gltf-model="#arjs-stupa"
-      scale="0.5 0.5 0.5"
-      position="0 0 0"
-      animation="property:rotation;from:0 0 0;to:0 360 0;loop:true;dur:16000;easing:linear">
-    </a-entity>
-  </a-marker>
-
-  <a-entity camera></a-entity>
-</a-scene>`;
-
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position:fixed;inset:0;z-index:10;';
-    wrapper.innerHTML = sceneHtml;
-    container.appendChild(wrapper);
-  }
-
-  function loadScript(src, cb) {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = cb;
-    s.onerror = () => showErr('Failed to load AR library. Check your connection.');
+/* ══ GLTF LOADER ══ */
+function loadGLTFLoader(){
+  return new Promise((res,rej)=>{
+    if(THREE.GLTFLoader){ res(); return; }
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+    s.onload=res; s.onerror=rej;
     document.head.appendChild(s);
+  });
+}
+
+/* ══ LOAD MODELS ══ */
+function loadSingle(url){
+  return new Promise(res=>{
+    const loader = new THREE.GLTFLoader();
+    loader.load(url, gltf=>{
+      const root = gltf.scene;
+      // normalise size to ~0.45m
+      const box = new THREE.Box3().setFromObject(root);
+      const sz = new THREE.Vector3(); box.getSize(sz);
+      const s = 0.45 / Math.max(sz.x,sz.y,sz.z);
+      root.scale.setScalar(s);
+      // sit on floor
+      const box2 = new THREE.Box3().setFromObject(root);
+      root.position.y = -box2.min.y;
+      const g = new THREE.Group(); g.add(root);
+      g.visible = false; scene.add(g);
+      res(g);
+    }, undefined, err=>{
+      console.warn('GLB load failed', url, err);
+      // fallback box
+      const h=0.5, geo=new THREE.BoxGeometry(0.25,h,0.25);
+      const mat=new THREE.MeshStandardMaterial({color:0xc8a060,roughness:0.7});
+      const mesh=new THREE.Mesh(geo,mat); mesh.position.y=h/2;
+      const g=new THREE.Group(); g.add(mesh);
+      g.visible=false; scene.add(g); res(g);
+    });
+  });
+}
+
+async function loadModels(){
+  [buddhaGroup, stupaGroup] = await Promise.all([
+    loadSingle(BUDDHA_URL),
+    loadSingle(STUPA_URL)
+  ]);
+}
+
+/* ══ LAUNCH XR ══ */
+async function launchXR(){
+  try{
+    xrSession = await navigator.xr.requestSession('immersive-ar',{
+      requiredFeatures:['hit-test'],
+      optionalFeatures:['dom-overlay','local-floor'],
+      domOverlay:{root:document.getElementById('hud')}
+    });
+  } catch(e){ showErr('AR session failed: '+e.message); return; }
+
+  document.getElementById('c').style.display='block';
+  document.getElementById('landing').style.display='none';
+  document.getElementById('hud').style.display='block';
+  document.getElementById('tapBtn').classList.remove('gone');
+
+  renderer.xr.setReferenceSpaceType('local');
+  await renderer.xr.setSession(xrSession);
+  xrSession.addEventListener('end', onEnd);
+
+  // hit-test source
+  const viewerSpace = await xrSession.requestReferenceSpace('viewer');
+  hitTestSource = await xrSession.requestHitTestSource({space:viewerSpace});
+
+  placed = false;
+  currentHitPose = null;
+  renderer.setAnimationLoop(onFrame);
+}
+
+/* ══ RENDER LOOP ══ */
+function onFrame(time, frame){
+  if(!frame) return;
+  const dt = clock.getDelta();
+
+  // gentle rotation
+  if(buddhaGroup && buddhaGroup.visible) buddhaGroup.rotation.y += dt*0.3;
+  if(stupaGroup  && stupaGroup.visible)  stupaGroup.rotation.y  += dt*0.2;
+
+  // hit test
+  if(!placed && hitTestSource){
+    const refSpace = renderer.xr.getReferenceSpace();
+    const hits = frame.getHitTestResults(hitTestSource);
+    if(hits.length){
+      const pose = hits[0].getPose(refSpace);
+      if(pose){
+        currentHitPose = pose;
+        reticle.visible = true;
+        reticle.matrix.fromArray(pose.transform.matrix);
+        document.getElementById('hintTxt').textContent='Surface found! Tap Place Models.';
+      }
+    } else {
+      reticle.visible=false;
+      currentHitPose=null;
+      document.getElementById('hintTxt').textContent='Slowly scan a flat surface…';
+    }
   }
+
+  renderer.render(scene, camera);
+}
+
+/* ══ PLACE ══ */
+function placeOnHit(){
+  if(!currentHitPose){
+    document.getElementById('hintTxt').textContent='No surface yet — keep scanning…';
+    return;
+  }
+  placed=true;
+  reticle.visible=false;
+  document.getElementById('tapBtn').classList.add('gone');
+  document.getElementById('hintTxt').textContent='Walk around to explore both models!';
+  document.getElementById('lblL').style.display='block';
+  document.getElementById('lblR').style.display='block';
+
+  // extract position + orientation from hit pose matrix
+  const m = new THREE.Matrix4().fromArray(currentHitPose.transform.matrix);
+  const pos = new THREE.Vector3().setFromMatrixPosition(m);
+  const quat = new THREE.Quaternion().setFromRotationMatrix(m);
+
+  // right vector in hit-surface local space
+  const right = new THREE.Vector3(1,0,0).applyQuaternion(quat);
+
+  if(buddhaGroup){
+    buddhaGroup.position.copy(pos).addScaledVector(right, -SPACING);
+    buddhaGroup.rotation.y = new THREE.Euler().setFromQuaternion(quat,'YXZ').y;
+    buddhaGroup.visible=true;
+  }
+  if(stupaGroup){
+    stupaGroup.position.copy(pos).addScaledVector(right, SPACING);
+    stupaGroup.rotation.y = new THREE.Euler().setFromQuaternion(quat,'YXZ').y;
+    stupaGroup.visible=true;
+  }
+}
+
+/* ══ EXIT ══ */
+function exitAR(){
+  if(xrSession) xrSession.end();
+}
+function onEnd(){
+  xrSession=null; hitTestSource=null;
+  renderer.setAnimationLoop(null);
+  if(buddhaGroup){ buddhaGroup.visible=false; }
+  if(stupaGroup){ stupaGroup.visible=false; }
+  placed=false; reticle.visible=false; currentHitPose=null;
+  document.getElementById('c').style.display='none';
+  document.getElementById('hud').style.display='none';
+  document.getElementById('lblL').style.display='none';
+  document.getElementById('lblR').style.display='none';
+  document.getElementById('landing').style.display='flex';
+  document.getElementById('startBtn').disabled=false;
+}
 </script>
 </body>
 </html>
