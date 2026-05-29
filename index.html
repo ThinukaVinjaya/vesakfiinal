@@ -8,11 +8,13 @@
 <style>
 body { margin: 0; overflow: hidden; background: #000; }
 #overlay { position: absolute; left: 10px; top: 10px; color: #fff; z-index: 2; }
+#loading { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background:#000; color:#fff; z-index:10; }
 </style>
 </head>
 
 <body>
 
+<div id="loading">Loading AR...</div>
 <div id="overlay">Tap AR → tap surface to place Buddha statue</div>
 
 <script type="module">
@@ -31,21 +33,41 @@ const loader = new GLTFLoader();
 init();
 animate();
 
+// 🔧 INIT
 function init(){
 
   renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
+
+  // Shadows
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
   document.body.appendChild(renderer.domElement);
 
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
 
-  // Lighting
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1));
+  camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth/window.innerHeight,
+    0.01,
+    20
+  );
+
+  // 💡 LIGHTING (IMPORTANT)
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1.2);
+  scene.add(hemiLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight.position.set(3, 6, 3);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+
   scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-  // Reticle
+  // 🔵 RETICLE
   reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI/2),
     new THREE.MeshBasicMaterial({ color: 0x00ffcc })
@@ -63,9 +85,22 @@ function init(){
       requiredFeatures: ['hit-test']
     })
   );
+
+  window.addEventListener('resize', onResize);
+
+  window.addEventListener('load', ()=>{
+    setTimeout(()=> document.getElementById('loading').style.display='none', 800);
+  });
 }
 
-// 📍 PLACE STATUE
+// 📐 RESIZE
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// 📍 PLACE MODEL
 function onSelect(){
   if (!reticle.visible || world) return;
 
@@ -74,22 +109,43 @@ function onSelect(){
   scene.add(world);
 
   addBuddha(world);
+
+  document.getElementById("overlay").style.display = "none";
 }
 
-// 🧘 LOAD BUDDHA MODEL ONLY
+// 🧘 LOAD REAL GLB MODEL
 function addBuddha(parent){
+
   loader.load(
     'https://raw.githubusercontent.com/ThinukaVinjaya/vesakmodels/main/stone_buddha_statue.glb',
+
     (gltf)=>{
+
       const model = gltf.scene;
 
-      model.scale.set(0.6, 0.6, 0.6);
+      // Scale & position
+      model.scale.set(0.35, 0.35, 0.35);
       model.position.set(0, 0, 0);
+      model.rotation.y = Math.PI;
+
+      // Improve rendering
+      model.traverse((child)=>{
+        if(child.isMesh){
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
 
       parent.add(model);
     },
-    undefined,
-    (error)=>console.error(error)
+
+    (xhr)=>{
+      console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+
+    (error)=>{
+      console.error('Model load error:', error);
+    }
   );
 }
 
@@ -101,6 +157,7 @@ function animate(){
 function render(timestamp, frame){
 
   if(frame){
+
     const session = renderer.xr.getSession();
     const refSpace = renderer.xr.getReferenceSpace();
 
@@ -115,6 +172,7 @@ function render(timestamp, frame){
 
     if(hitTestSource){
       const hits = frame.getHitTestResults(hitTestSource);
+
       if(hits.length){
         const pose = hits[0].getPose(refSpace);
         reticle.visible = true;
@@ -127,7 +185,6 @@ function render(timestamp, frame){
 
   renderer.render(scene, camera);
 }
-
 </script>
 </body>
 </html>
