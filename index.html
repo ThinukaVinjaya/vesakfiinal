@@ -1,38 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8"/>
+<meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AR Buddha Statue</title>
-
+<title>AR Buddha FIX</title>
 <style>
-html,body{margin:0;overflow:hidden;background:#000;font-family:serif}
+html,body{margin:0;overflow:hidden;background:#000}
 canvas{width:100%;height:100%;display:block}
 
 #ui{
-  position:fixed;inset:0;display:flex;
-  align-items:center;justify-content:center;
-  flex-direction:column;color:#ffdca8;
-  background:radial-gradient(circle,#1a1200,#000);
+  position:fixed;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;
+  background:#0a0700;
+  color:#ffdca8;
+  font-family:serif;
   z-index:10;
 }
-
 button{
-  padding:14px 28px;border-radius:30px;
+  padding:14px 30px;
+  border-radius:30px;
   border:1px solid #ffcc88;
-  background:#221100;color:#ffdca8;
-  font-size:16px;cursor:pointer;
+  background:#1a0f00;
+  color:#ffdca8;
+  cursor:pointer;
 }
-
 #hud{
-  position:fixed;inset:0;display:none;
-  z-index:5;pointer-events:none;
+  position:fixed;inset:0;
+  display:none;
+  z-index:5;
 }
-
 #place{
   position:absolute;bottom:40px;left:50%;
   transform:translateX(-50%);
-  pointer-events:auto;
 }
 </style>
 </head>
@@ -40,13 +40,13 @@ button{
 <body>
 
 <div id="ui">
-  <h1>🪷 AR Buddha Statue</h1>
-  <p>Place a sacred Buddha statue in your space</p>
+  <h1>🪷 AR Buddha</h1>
   <button onclick="startAR()">Enter AR</button>
+  <p id="msg"></p>
 </div>
 
 <div id="hud">
-  <button id="place" onclick="place()">Place Statue</button>
+  <button id="place" onclick="placeModel()">Place Buddha</button>
 </div>
 
 <canvas id="c"></canvas>
@@ -62,11 +62,14 @@ let reticle;
 let hitMatrix = new THREE.Matrix4();
 let hitFound = false;
 let placed = false;
-
 let buddha;
 
-const BUDDHA_MODEL =
-"https://modelviewer.dev/shared-assets/models/Astronaut.glb"; // safe fallback model
+const MODEL =
+"https://modelviewer.dev/shared-assets/models/Astronaut.glb"; // tested working
+
+function log(m){
+  document.getElementById("msg").innerText = m;
+}
 
 function initScene(){
 
@@ -74,7 +77,7 @@ function initScene(){
   camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 100);
 
   renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("c"),
+    canvas:document.getElementById("c"),
     alpha:true,
     antialias:true
   });
@@ -82,58 +85,70 @@ function initScene(){
   renderer.setSize(innerWidth,innerHeight);
   renderer.xr.enabled = true;
 
-  scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.6));
+  scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.8));
 
   const geo = new THREE.RingGeometry(0.05,0.09,32).rotateX(-Math.PI/2);
-  reticle = new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0xffcc66}));
+  reticle = new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({color:0xffcc66})
+  );
   reticle.matrixAutoUpdate = false;
   reticle.visible = false;
   scene.add(reticle);
 }
 
-function loadBuddha(){
+function loadModel(){
 
   return new Promise(res=>{
 
     const loader = new THREE.GLTFLoader();
 
-    loader.load(BUDDHA_MODEL,(gltf)=>{
+    log("Loading model...");
+
+    loader.load(MODEL,(gltf)=>{
 
       const obj = gltf.scene;
 
-      // scale
+      // FIX 1: force visibility
+      obj.visible = true;
+
+      // scale properly
       const box = new THREE.Box3().setFromObject(obj);
       const size = new THREE.Vector3();
       box.getSize(size);
 
-      const s = 0.5 / Math.max(size.x,size.y,size.z);
-      obj.scale.setScalar(s);
+      const scale = 0.5 / Math.max(size.x,size.y,size.z);
+      obj.scale.setScalar(scale);
 
-      // place on ground
       const box2 = new THREE.Box3().setFromObject(obj);
       obj.position.y -= box2.min.y;
 
-      const group = new THREE.Group();
-      group.add(obj);
-      group.visible = true;
+      buddha = new THREE.Group();
+      buddha.add(obj);
 
-      scene.add(group);
-      res(group);
+      buddha.visible = true;
+      scene.add(buddha);
 
-    },undefined,()=>{
+      log("Model loaded ✔");
+      res();
 
-      // fallback statue (gold block)
+    },
+    undefined,
+    (err)=>{
+
+      console.log(err);
+      log("Model failed → fallback used");
+
       const m = new THREE.Mesh(
         new THREE.CylinderGeometry(0.15,0.2,0.5,32),
-        new THREE.MeshStandardMaterial({color:0xd4af37})
+        new THREE.MeshStandardMaterial({color:0xffcc55})
       );
 
-      const g = new THREE.Group();
-      g.add(m);
-      g.visible = true;
-      scene.add(g);
+      buddha = new THREE.Group();
+      buddha.add(m);
+      scene.add(buddha);
 
-      res(g);
+      res();
     });
 
   });
@@ -147,7 +162,7 @@ async function startAR(){
   }
 
   initScene();
-  buddha = await loadBuddha();
+  await loadModel();
 
   xrSession = await navigator.xr.requestSession("immersive-ar",{
     requiredFeatures:["hit-test"],
@@ -164,19 +179,19 @@ async function startAR(){
   const viewer = await xrSession.requestReferenceSpace("viewer");
   hitSource = await xrSession.requestHitTestSource({space:viewer});
 
-  renderer.setAnimationLoop(onFrame);
+  renderer.setAnimationLoop(frame);
 }
 
-function onFrame(t,frame){
+function frame(t,frame){
 
   if(!frame) return;
 
-  const refSpace = renderer.xr.getReferenceSpace();
+  const ref = renderer.xr.getReferenceSpace();
   const hits = frame.getHitTestResults(hitSource);
 
-  if(hits.length>0 && !placed){
+  if(hits.length){
 
-    const pose = hits[0].getPose(refSpace);
+    const pose = hits[0].getPose(ref);
 
     hitMatrix.fromArray(new Float32Array(pose.transform.matrix));
 
@@ -191,7 +206,7 @@ function onFrame(t,frame){
   renderer.render(scene,camera);
 }
 
-function place(){
+function placeModel(){
 
   if(!hitFound) return;
 
@@ -201,6 +216,7 @@ function place(){
     .setFromMatrixPosition(hitMatrix);
 
   buddha.position.set(pos.x,pos.y,pos.z);
+
   reticle.visible = false;
 }
 
