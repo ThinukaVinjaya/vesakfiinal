@@ -3,19 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>AR Vesak City</title>
+<title>AR Buddha Statue</title>
 
 <style>
 body { margin: 0; overflow: hidden; background: #000; }
 #overlay { position: absolute; left: 10px; top: 10px; color: #fff; z-index: 2; }
-#loading { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background:#000; color:#fff; z-index:10; }
 </style>
 </head>
 
 <body>
 
-<div id="loading">Loading Vesak AR City...</div>
-<div id="overlay">Tap AR → tap surface to place</div>
+<div id="overlay">Tap AR → tap surface to place Buddha statue</div>
 
 <script type="module">
 import * as THREE from 'https://unpkg.com/three@0.150.1/build/three.module.js';
@@ -29,9 +27,6 @@ let hitTestSourceRequested = false;
 let world = null;
 
 const loader = new GLTFLoader();
-const flyingLanterns = [];
-const pathLights = [];
-const particleGroups = [];
 
 init();
 animate();
@@ -46,7 +41,7 @@ function init(){
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
 
-  // 🔥 Lighting (important for GLB models)
+  // Lighting
   scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1));
   scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
@@ -68,18 +63,9 @@ function init(){
       requiredFeatures: ['hit-test']
     })
   );
-
-  window.addEventListener('resize', onResize);
-  window.addEventListener('load', ()=> setTimeout(()=> loading.style.display='none', 800));
 }
 
-function onResize(){
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-// 📍 PLACE SCENE
+// 📍 PLACE STATUE
 function onSelect(){
   if (!reticle.visible || world) return;
 
@@ -87,85 +73,24 @@ function onSelect(){
   world.position.setFromMatrixPosition(reticle.matrix);
   scene.add(world);
 
-  buildWorld(world);
+  addBuddha(world);
 }
 
-// 🌍 BUILD YOUR VESAK WORLD
-function buildWorld(parent){
-
-  addGround(parent);
-
-  addTemple(parent, 4, 0, -6); // GLB
-  addBuddha(parent, -4, 0, -6); // GLB
-
-  addFlyingLanterns(parent, 14);
-  addFireflyGlow(parent);
-}
-
-// 🛕 LOAD STUPA MODEL
-function addTemple(parent, x, y, z){
-  loader.load(
-    'https://raw.githubusercontent.com/ThinukaVinjaya/vesakmodels/main/sthupa_srilanka.glb',
-    (gltf)=>{
-      const model = gltf.scene;
-      model.position.set(x,y,z);
-      model.scale.set(0.5,0.5,0.5);
-      model.rotation.y = Math.PI;
-      parent.add(model);
-    }
-  );
-}
-
-// 🧘 LOAD BUDDHA MODEL
-function addBuddha(parent, x, y, z){
+// 🧘 LOAD BUDDHA MODEL ONLY
+function addBuddha(parent){
   loader.load(
     'https://raw.githubusercontent.com/ThinukaVinjaya/vesakmodels/main/stone_buddha_statue.glb',
     (gltf)=>{
       const model = gltf.scene;
-      model.position.set(x,y,z);
-      model.scale.set(0.6,0.6,0.6);
+
+      model.scale.set(0.6, 0.6, 0.6);
+      model.position.set(0, 0, 0);
+
       parent.add(model);
-    }
+    },
+    undefined,
+    (error)=>console.error(error)
   );
-}
-
-// 🌱 GROUND
-function addGround(parent){
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(12,12),
-    new THREE.MeshStandardMaterial({ color:0x0f261a, roughness:1 })
-  );
-  ground.rotation.x = -Math.PI/2;
-  parent.add(ground);
-}
-
-// 🏮 FLYING LANTERNS
-function addFlyingLanterns(parent, count){
-  for(let i=0;i<count;i++){
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.15,8,8),
-      new THREE.MeshStandardMaterial({ color:0xffcc88, emissive:0xffaa33 })
-    );
-    mesh.position.set((Math.random()-0.5)*4,1,-Math.random()*6);
-    mesh.userData = { speed:0.01 + Math.random()*0.02 };
-    flyingLanterns.push(mesh);
-    parent.add(mesh);
-  }
-}
-
-// ✨ FIREFLIES
-function addFireflyGlow(parent){
-  const group = new THREE.Group();
-  for(let i=0;i<20;i++){
-    const f = new THREE.Mesh(
-      new THREE.SphereGeometry(0.03,8,8),
-      new THREE.MeshStandardMaterial({ color:0xffe7aa, emissive:0xffd680 })
-    );
-    f.position.set((Math.random()-0.5)*5, Math.random()*2, -Math.random()*5);
-    group.add(f);
-  }
-  parent.add(group);
-  particleGroups.push(group);
 }
 
 // 🔄 LOOP
@@ -199,12 +124,6 @@ function render(timestamp, frame){
       }
     }
   }
-
-  // Animate lanterns
-  flyingLanterns.forEach(l=>{
-    l.position.y += l.userData.speed;
-    if(l.position.y > 5) l.position.y = 1;
-  });
 
   renderer.render(scene, camera);
 }
