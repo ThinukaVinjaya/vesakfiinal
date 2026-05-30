@@ -197,14 +197,15 @@
   const elLoadText = document.getElementById('loadText');
 
   // ── Model URLs ────────────────────────────────────────────────────────────────
-  const BASE = 'https://pub-7cbad791f95e4c9680981f095fab45e1.r2.dev/';
+  // jsDelivr mirrors GitHub with correct CORS headers for browser/WebXR fetches
+  const BASE = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/';
   const MODELS = {
-    buddha:        BASE + 'stone_buddha_statue.glb',
-    lotus1:        BASE + 'lotus1.glb',
-    lotus2:        BASE + 'lotus_flower2.glb',
-    lotusLantern:  BASE + 'lotus_lanttern.glb',
-    vesakLantern:  BASE + 'vesak_lanterns.glb',
-    stupa:         BASE + 'sthupa_srilanka.glb',
+    buddha:       BASE + 'stone_buddha_statue.glb',
+    lotus1:       BASE + 'lotus1.glb',
+    lotus2:       BASE + 'lotus_flower2.glb',
+    lotusLantern: BASE + 'lotus_lanttern.glb',
+    vesakLantern: BASE + 'vesak_lanterns.glb',
+    stupa:        BASE + 'sthupa_srilanka.glb',
   };
 
   // ── Config ────────────────────────────────────────────────────────────────────
