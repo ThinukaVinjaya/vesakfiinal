@@ -126,19 +126,12 @@
       const gltfLoader = new GLTFLoader();
       gltfLoader.setDRACOLoader(draco);
 
-      const cache = {};  // key → THREE.Group (original, never mutated)
+      const cache = {};
 
-      /* ────────────────────────────────────────────────────────────────────
-         PERF FIX 1 — Parallel model loading with Promise.all
-         Previously: sequential await inside a for-loop → each model waited
-         for the previous one. With 6 models that's 6× the RTT.
-         Now: all 6 fire at once, total time ≈ slowest single download.
-      ──────────────────────────────────────────────────────────────────── */
+      /* ── Parallel model loading ── */
       async function preload() {
         let done = 0;
         const total = MODELS.length;
-
-        // Pre-warm DRACO WASM so it's ready before first decode
         draco.preload();
 
         const jobs = MODELS.map(({ key, url, label }) =>
@@ -147,12 +140,10 @@
               url,
               result => {
                 cache[key] = result.scene;
-                // Pre-traverse once here so clone() is fast later
                 cache[key].traverse(n => {
                   if (n.isMesh) {
                     n.castShadow    = true;
                     n.receiveShadow = true;
-                    // Share materials across instances (cloning copies reference)
                     if (n.material) n.material.needsUpdate = false;
                   }
                 });
@@ -161,7 +152,7 @@
                 elProgFill.style.width  = `${(done/total)*100}%`;
                 resolve();
               },
-              undefined,  // progress callback not needed
+              undefined,
               () => {
                 console.warn(`Failed to load: ${key}`);
                 cache[key] = null;
@@ -169,7 +160,7 @@
                 elProgFill.style.width  = `${(done/total)*100}%`;
                 elErrMsg.style.display  = 'block';
                 elErrMsg.textContent    = `⚠️ "${label}" failed — using placeholder.`;
-                resolve();  // always resolve so Promise.all continues
+                resolve();
               }
             );
           })
@@ -183,13 +174,7 @@
         setTimeout(() => elLoading.style.display = 'none', 700);
       }
 
-      /* ────────────────────────────────────────────────────────────────────
-         PERF FIX 2 — getModel with single Box3 pass
-         Old code called setFromObject twice (each traverses the whole tree).
-         Now: one pass, reuse the same Box3.
-      ──────────────────────────────────────────────────────────────────── */
-
-      // Cached fallback geometries & materials — created once, reused
+      /* ── Fallback geometries (created once, shared) ── */
       const _fbGeo = {};
       const _fbMat = {};
       function getFallback(key) {
@@ -214,43 +199,32 @@
         return root;
       }
 
-      const _box3  = new THREE.Box3();   // reusable — avoids GC pressure
+      /* ── Reusable Box3 helpers ── */
+      const _box3  = new THREE.Box3();
       const _size3 = new THREE.Vector3();
       const _cent3 = new THREE.Vector3();
 
       function getModel(key, targetHeight) {
         const root = cache[key] ? cache[key].clone(true) : getFallback(key);
-
-        // Single Box3 pass
         _box3.setFromObject(root);
         _box3.getSize(_size3);
         _box3.getCenter(_cent3);
-
         const s = targetHeight / (_size3.y || 1);
         root.scale.setScalar(s);
-
-        // After scale, recalculate min.y only (cheaper than full recompute)
         root.position.x -= _cent3.x * s;
         root.position.z -= _cent3.z * s;
         root.position.y -= _box3.min.y * s;
-
         return root;
       }
 
-      /* ── Three.js scene ── */
+      /* ── Renderer ── */
       const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // cap at 2× for perf
+      // FIX SPEED: cap pixel ratio at 1.5 instead of 2 — big win on high-DPI mobile
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled        = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
-
-      /* ────────────────────────────────────────────────────────────────────
-         PERF FIX 3 — Only ONE shadow-casting DirectionalLight.
-         Every shadow-caster doubles the draw calls. Removed per-lantern
-         shadow lights; they're replaced by emissive materials + a few
-         cheap non-shadow PointLights pooled and reused.
-      ──────────────────────────────────────────────────────────────────── */
 
       Object.assign(renderer.domElement.style, {
         position:'fixed', top:'0', left:'0', width:'100%', height:'100%', zIndex:'1'
@@ -260,45 +234,37 @@
       const scene  = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 60);
 
-      // Lights — minimal set
+      /* ── Lights ── */
       scene.add(new THREE.HemisphereLight(0xffe4b5, 0x664422, 1.3));
       const sun = new THREE.DirectionalLight(0xfff8e0, 0.9);
       sun.position.set(4, 10, 5);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024); // 1024 vs 2048 = 4× cheaper shadow map
+      sun.shadow.mapSize.set(512, 512); // FIX SPEED: 512 vs 1024 → 4× cheaper shadow map
       sun.shadow.camera.near = 0.5;
       sun.shadow.camera.far  = 25;
       scene.add(sun);
       scene.add(new THREE.AmbientLight(0xffd580, 0.5));
 
-      /* ────────────────────────────────────────────────────────────────────
-         PERF FIX 4 — PointLight pool
-         Instead of creating 30+ PointLights (one per lantern / orb / pole),
-         we create a fixed pool of 8 animated lights. They cover the whole
-         scene with warm flickering. This reduces GPU lighting passes from
-         ~30 to 8, a massive win on mobile WebXR.
-      ──────────────────────────────────────────────────────────────────── */
-      const POOL_SIZE = 8;
+      /* ── PointLight pool (reduced to 6 for speed) ── */
+      // FIX SPEED: 8 → 6 pool lights, fewer GPU light passes
+      const POOL_SIZE = 6;
       const lightPool = [];
-      const lightPhases = [0, 0.8, 1.6, 2.4, 3.2, 4.0, 4.8, 5.6];
+      const lightPhases    = [0, 0.8, 1.6, 2.4, 3.2, 4.0];
       const lightPositions = [
-        [-2.5, 1.0, -5.0],   // Buddha area
-        [ 5.5, 1.2, -5.5],   // Stupa area
-        [ 0.0, 0.6, -7.5],   // Vesak lantern cluster centre
-        [-1.3, 0.4, -10.0],  // Far left
-        [ 1.3, 0.4, -10.0],  // Far right
-        [ 0.0, 0.8, -3.5],   // Entrance
-        [-3.0, 0.5, -4.5],   // Left side
-        [ 3.0, 0.5, -4.5],   // Right side
+        [-2.5, 1.0, -5.0],
+        [ 5.5, 1.2, -5.5],
+        [ 0.0, 0.6, -7.5],
+        [ 0.0, 0.8, -3.5],
+        [-3.0, 0.5, -4.5],
+        [ 3.0, 0.5, -4.5],
       ];
       for (let i = 0; i < POOL_SIZE; i++) {
         const pl = new THREE.PointLight(0xffa040, 0.9, 5.5);
         pl.position.set(...lightPositions[i]);
         lightPool.push({ light: pl, phase: lightPhases[i] });
-        // Note: added to world group in buildCity, not scene directly
       }
 
-      // Reticle
+      /* ── Reticle ── */
       const reticle = new THREE.Mesh(
         new THREE.RingGeometry(0.08, 0.13, 32).rotateX(-Math.PI/2),
         new THREE.MeshBasicMaterial({ color:0x00ffcc, transparent:true, opacity:0.9 })
@@ -329,10 +295,10 @@
       let isNight = false;
 
       const flyingLanterns = [];
-      let fireflyPoints = null;      // single Points object
-      let fireflyPositions = null;   // Float32Array for firefly animation
+      let fireflyPoints = null;
+      let fireflyPositions = null;
 
-      // Brightness sensor
+      /* ── Brightness sensor ── */
       let vidEl = null, brCtx = null;
       function startBrightness() {
         navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
@@ -364,7 +330,11 @@
       });
 
       /* ── Render loop ── */
+      // FIX SPEED: throttle non-critical animations — only animate every other frame
+      let _animFrame = 0;
       renderer.setAnimationLoop((ts, frame) => {
+        _animFrame++;
+
         if (frame) {
           const session  = renderer.xr.getSession();
           const refSpace = renderer.xr.getReferenceSpace();
@@ -407,8 +377,11 @@
         }
 
         animLanterns(ts);
-        animLights(ts);
-        animFireflies(ts);
+        // FIX SPEED: lights and fireflies on every other frame — imperceptible difference
+        if (_animFrame % 2 === 0) {
+          animLights(ts);
+          animFireflies(ts);
+        }
         renderer.render(scene, camera);
       });
 
@@ -442,9 +415,7 @@
          BUILD CITY
       ══════════════════════════════════════════════════════════════════ */
       function buildCity(w) {
-        // Add pooled lights to world
         lightPool.forEach(({ light }) => w.add(light));
-
         floorDeco(w);
         lotusPath(w);
         buddhaStatue(w);
@@ -452,11 +423,11 @@
         vesakLanternCluster(w);
         lotusLanterns(w);
         flyingLanternGroup(w, 18);
-        gardenOrbs(w);
+        // FIX SPEED: removed gardenOrbs — replaced ambient glow with emissive beads already in scene
         fireflyCloud(w);
       }
 
-      /* Floor mandala glow */
+      /* ── Floor mandala ── */
       function floorDeco(p) {
         p.add(new THREE.Mesh(
           new THREE.CircleGeometry(5.5,64).rotateX(-Math.PI/2),
@@ -470,7 +441,7 @@
         });
       }
 
-      /* Buddha — left */
+      /* ── Buddha statue ── */
       function buddhaStatue(p) {
         const m = getModel('buddha', 1.9);
         m.position.set(-2.5, 0, -5);
@@ -484,76 +455,44 @@
         halo.position.set(0, 2.15, -0.08); halo.rotation.x = -0.15;
         m.add(halo);
 
-        // Incense glow — pure emissive, no extra light needed
         const inc = new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),
           new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.9}));
         inc.position.set(-2.5, 0.65, -4.6); p.add(inc);
       }
 
-      /* Stupa — far right, clear of lotus path */
+      /* ── Stupa — FIX 1: NO lotus flowers around stupa, NO offering candles ── */
       function stupaRight(p) {
         const STUPA_X = 5.5, STUPA_Z = -5.5;
-
         const m = getModel('stupa', 2.4);
         m.position.set(STUPA_X, 0, STUPA_Z);
         m.rotation.y = -0.18;
         p.add(m);
-
-        // Decorative lotus ring AROUND base perimeter (radius 1.1 — outside footprint)
-        // 8 evenly spaced flowers, alternating lotus1/lotus2
-        const RING_R = 1.1;
-        for (let i = 0; i < 8; i++) {
-          const angle = (i / 8) * Math.PI * 2;
-          const lx = STUPA_X + Math.cos(angle) * RING_R;
-          const lz = STUPA_Z + Math.sin(angle) * RING_R;
-          const key = i % 2 === 0 ? 'lotus1' : 'lotus2';
-          const lf = getModel(key, 0.14 + (i % 3) * 0.03);
-          lf.position.set(lx, 0, lz);
-          lf.rotation.y = angle + Math.PI;
-          p.add(lf);
-        }
-
-        // 4 small offering candle orbs at cardinal points around base
-        const candleMat = new THREE.MeshStandardMaterial({
-          color:0xffdd88, emissive:0xff9900, emissiveIntensity:3,
-          transparent:true, opacity:0.95
-        });
-        const candleGeo = new THREE.SphereGeometry(0.045, 6, 6);
-        [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach(angle => {
-          const c = new THREE.Mesh(candleGeo, candleMat);
-          c.position.set(STUPA_X + Math.cos(angle)*0.65, 0.06, STUPA_Z + Math.sin(angle)*0.65);
-          p.add(c);
-        });
+        // ✅ Removed: 8 lotus ring, 4 candle orbs — stupa area is now clean
       }
 
-      /* Vesak lantern cluster — centre back, hanging in the air */
+      /* ── Vesak lantern cluster ── */
       function vesakLanternCluster(p) {
-        // [x, hangHeight, z, modelHeight]
-        // hangHeight = bottom of lantern above floor — range 1.6–2.4m
         const spots = [
-          [0,    2.0, -7.5, 0.75],   // centre main — highest
+          [0,    2.0, -7.5, 0.75],
           [-1.1, 1.8, -8.5, 0.55],
           [ 1.1, 1.8, -8.5, 0.55],
           [-0.5, 1.6, -6.5, 0.50],
           [ 0.5, 1.6, -6.5, 0.50],
-          [ 0,   2.2, -9.5, 0.50],   // far back — very high
+          [ 0,   2.2, -9.5, 0.50],
           [-1.8, 1.7, -7.0, 0.45],
           [ 1.8, 1.7, -7.0, 0.45],
         ];
         const stringMat = new THREE.MeshBasicMaterial({color:0x8b6914});
-        const stringGeo = new THREE.CylinderGeometry(0.006, 0.006, 1, 4); // resized per lantern below
 
         spots.forEach(([x, hangY, z, h]) => {
           const m = getModel('vesakLantern', h);
-          // Position so BOTTOM of lantern is at hangY
           m.position.set(x, hangY, z);
           m.rotation.y = (Math.random()-0.5)*0.6;
           p.add(m);
 
-          // Hanging string from ceiling height (3.2m) down to top of lantern
-          const ceilY   = 3.2;
-          const topY    = hangY + h;          // top of lantern
-          const strLen  = ceilY - topY;
+          const ceilY = 3.2;
+          const topY  = hangY + h;
+          const strLen = ceilY - topY;
           if (strLen > 0.05) {
             const sg = new THREE.CylinderGeometry(0.005, 0.005, strLen, 4);
             const sm = new THREE.Mesh(sg, stringMat);
@@ -562,7 +501,7 @@
           }
         });
 
-        // String light beads — emissive only, zero lights
+        // String light beads
         for (let i=0; i<=14; i++) {
           const t = i/14;
           const bead = new THREE.Mesh(
@@ -578,8 +517,9 @@
         }
       }
 
-      /* Lotus flower path */
+      /* ── Lotus path — FIX 2: removed gardenOrbs (path light poles), FIX 1: no cluster near stupa ── */
       function lotusPath(p) {
+        // Centre path flowers
         for (let i=0; i<11; i++) {
           const key = i%2===0 ? 'lotus1' : 'lotus2';
           const h   = 0.18 + Math.random()*0.10;
@@ -590,15 +530,13 @@
           p.add(m);
         }
 
-        // Side clusters — kept clear of stupa (3.0, -5.5) and buddha (-2.5, -5.0)
-        // Removed [2.3,0,-5.5] and [-2.3,0,-5.5] which were inside those footprints
-        // Replaced with safer positions further out on each side
+        // Side clusters — FIX 1: removed [-4.2,0,-4.0] and [4.2,0,-4.0]
+        // which were near stupa area. Also removed [1.0,0,-5.5] / [-1.0,0,-5.5]
+        // which were overlapping the central path lanterns.
         [
-          [-1.9,0,-2.5],[1.9,0,-2.5],          // entrance sides — safe
-          [-1.0,0,-5.5],[1.0,0,-5.5],           // narrow centre aisle beside path — safe
-          [-1.6,0,-8.5],[1.6,0,-8.5],           // far back — safe
-          [-4.2,0,-4.0],[4.2,0,-4.0],           // pushed further out from stupa/buddha
-          [-4.0,0,-7.5],[4.0,0,-7.5],           // wide sides, clear of stupa
+          [-1.9,0,-2.5],[1.9,0,-2.5],    // entrance sides
+          [-1.6,0,-8.5],[1.6,0,-8.5],    // far back
+          [-4.0,0,-7.5],[4.0,0,-7.5],    // wide sides, well clear of stupa
         ].forEach(([x,y,z],idx) => {
           const n = 2 + Math.floor(Math.random()*3);
           for (let j=0; j<n; j++) {
@@ -611,14 +549,14 @@
         });
       }
 
-      /* Lotus lanterns — emissive only, no per-lantern lights */
+      /* ── Lotus lanterns (path-side) — FIX 2: these are NOT light poles, kept as-is ── */
       function lotusLanterns(p) {
         [
           [-1.3,0,-10],[1.3,0,-10],
           [-2.6,0,-8.8],[2.6,0,-8.8],
           [-0.6,0,-11.5],[0.6,0,-11.5],
-          [-3.8,0,-3.2],[3.8,0,-3.2],
-          [-3.8,0,-6.5],[3.8,0,-6.5],
+          // FIX 2: removed [-3.8,0,-3.2],[3.8,0,-3.2] and [-3.8,0,-6.5],[3.8,0,-6.5]
+          // — these were the tall path-side orb poles flanking the walkway
           [0,0,-12.5],
         ].forEach(([x,y,z]) => {
           const m = getModel('lotusLantern', 0.36);
@@ -628,9 +566,7 @@
         });
       }
 
-     
-
-      /* Flying sky lanterns */
+      /* ── Flying sky lanterns ── */
       function flyingLanternGroup(p, count) {
         for (let i=0; i<count; i++) {
           const l = mkSkyLantern();
@@ -645,10 +581,10 @@
         }
       }
 
-      // Shared lantern geometries/materials
-      const _lanternBodyGeo = new THREE.SphereGeometry(0.21,10,8);
-      const _lanternRingGeo = new THREE.TorusGeometry(0.16,0.022,6,20);
-      const _lanternFlamGeo = new THREE.ConeGeometry(0.056,0.19,6);
+      // Shared lantern geometry/material (created once)
+      const _lanternBodyGeo = new THREE.SphereGeometry(0.21,8,6);   // FIX SPEED: 10,8 → 8,6
+      const _lanternRingGeo = new THREE.TorusGeometry(0.16,0.022,5,16); // FIX SPEED: 6,20 → 5,16
+      const _lanternFlamGeo = new THREE.ConeGeometry(0.056,0.19,5);  // FIX SPEED: 6 → 5 segments
       const _lanternBodyMat = new THREE.MeshStandardMaterial({color:0xffeb99,emissive:0xffd36b,emissiveIntensity:1.5,transparent:true,opacity:0.87});
       const _lanternRingMat = new THREE.MeshStandardMaterial({color:0x7a4a2c});
       const _lanternFlamMat = new THREE.MeshStandardMaterial({color:0xffa533,emissive:0xff7700,emissiveIntensity:4});
@@ -661,54 +597,27 @@
         r.rotation.x=Math.PI/2; r.position.y=-0.28; g.add(r);
         const f = new THREE.Mesh(_lanternFlamGeo, _lanternFlamMat);
         f.position.y=-0.19; f.rotation.x=Math.PI; g.add(f);
-        // ────────────────────────────────────────────────────────────────
-        // PERF FIX 6 — Sky lanterns: remove per-lantern PointLight.
-        // 18 lanterns × 1 PointLight each = 18 extra lights thrashing GPU.
-        // The emissive flame + body already glow convincingly without them.
-        // Pool lights cover ambient warmth from below.
-        // ────────────────────────────────────────────────────────────────
         return g;
       }
 
-      /* Ambient garden orbs — emissive mesh only */
-      function gardenOrbs(p) {
-        const orbMat = new THREE.MeshStandardMaterial({color:0xffd580,emissive:0xffd150,emissiveIntensity:1.4,transparent:true,opacity:0.9});
-        const orbGeo = new THREE.SphereGeometry(0.09,8,8);
-        [
-          [-1.9,0.42,-1.6],[1.9,0.42,-1.6],
-          [-3.3,0.42,-4.8],[3.3,0.42,-4.8],
-          [-1.6,0.42,-7.8],[1.6,0.42,-7.8],
-          [-2.1,0.42,-10.5],[2.1,0.42,-10.5],
-          [0,0.42,-1.0],[0,0.42,-13.0],
-        ].forEach(([x,y,z]) => {
-          const orb = new THREE.Mesh(orbGeo, orbMat);
-          orb.position.set(x,y,z); p.add(orb);
-        });
-      }
-
-      /* ────────────────────────────────────────────────────────────────────
-         PERF FIX 7 — Fireflies as a single THREE.Points object
-         Old: 32 individual Mesh objects = 32 draw calls per frame.
-         New: 1 Points object = 1 draw call per frame.
-         Animation updates the BufferAttribute directly (no per-object GC).
-      ──────────────────────────────────────────────────────────────────── */
-      const FF_COUNT = 32;
+      /* ── Fireflies — single Points draw call ── */
+      // FIX SPEED: reduced FF_COUNT 32 → 20
+      const FF_COUNT = 20;
       function fireflyCloud(p) {
         fireflyPositions = new Float32Array(FF_COUNT * 3);
-        const baseY   = new Float32Array(FF_COUNT);
-        const phases  = new Float32Array(FF_COUNT);
+        const baseY  = new Float32Array(FF_COUNT);
+        const phases = new Float32Array(FF_COUNT);
 
         for (let i = 0; i < FF_COUNT; i++) {
           fireflyPositions[i*3]   = (Math.random()-0.5)*9;
           fireflyPositions[i*3+1] = 0.15 + Math.random()*2.0;
           fireflyPositions[i*3+2] = -0.5 - Math.random()*11;
-          baseY[i]   = fireflyPositions[i*3+1];
-          phases[i]  = Math.random()*Math.PI*2;
+          baseY[i]  = fireflyPositions[i*3+1];
+          phases[i] = Math.random()*Math.PI*2;
         }
 
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
-        // Store metadata on geometry for animation
         geo.userData = { baseY, phases };
 
         const mat = new THREE.PointsMaterial({
@@ -746,18 +655,15 @@
         });
       }
 
-      /* Single-buffer firefly animation — no per-object overhead */
       function animFireflies(t) {
         if (!fireflyPoints) return;
-        const pos    = fireflyPoints.geometry.attributes.position;
-        const { baseY, phases } = fireflyPoints.geometry.userData;
-
+        const pos = fireflyPoints.geometry.attributes.position;
         for (let i = 0; i < FF_COUNT; i++) {
           pos.array[i*3]   += Math.sin(t*0.0007+i)*0.0006;
           pos.array[i*3+1] += 0.0019;
           if (pos.array[i*3+1] > 2.7) pos.array[i*3+1] = 0.15;
         }
-        pos.needsUpdate = true;  // single flag, not per-object
+        pos.needsUpdate = true;
         fireflyPoints.material.opacity = 0.55 + 0.35*Math.abs(Math.sin(t*0.0014));
       }
 
