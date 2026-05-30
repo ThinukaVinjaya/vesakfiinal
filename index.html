@@ -12,23 +12,32 @@
       #loading {
         position: fixed; inset: 0;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.92); color: #fff; z-index: 20; gap: 14px;
+        background: rgba(0,0,0,0.93); color: #fff; z-index: 20; gap: 14px;
         text-align: center; padding: 28px;
       }
-      #loading .title { font-size: 22px; font-weight: bold; color: #ffd580; }
+      #loading .title { font-size: 22px; font-weight: bold; color: #ffd580; letter-spacing: 0.5px; }
       #loading .sub   { font-size: 13px; color: #bbb; line-height: 1.6; }
-      #loadBar { width: 200px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; }
-      #loadFill { height: 100%; width: 0%; background: #ffd580; border-radius: 2px; transition: width 0.3s; }
+
+      #loadBarWrap { width: 220px; }
+      #loadBar { width: 100%; height: 5px; background: rgba(255,255,255,0.15); border-radius: 3px; overflow: hidden; }
+      #loadFill { height: 100%; width: 0%; background: linear-gradient(90deg,#ffaa33,#ffd580); border-radius: 3px; transition: width 0.35s ease; }
+      #loadNote { font-size: 11px; color: #888; margin-top: 6px; text-align: center; }
+
+      #modelList { font-size: 11px; color: #666; line-height: 1.9; text-align: left; }
+      #modelList span.ok   { color: #44cc88; }
+      #modelList span.fail { color: #ee6655; }
+      #modelList span.wait { color: #888; }
 
       #statusBar {
         position: fixed; bottom: 24px; left: 50%;
         transform: translateX(-50%);
-        background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+        background: rgba(0,0,0,0.68); backdrop-filter: blur(8px);
         color: #fff; font-size: 13px; padding: 10px 20px; border-radius: 24px;
         z-index: 6; display: none; text-align: center;
-        border: 1px solid rgba(255,255,255,0.12); transition: opacity 0.4s;
+        border: 1px solid rgba(255,255,255,0.13); transition: opacity 0.4s;
         max-width: 88vw; white-space: normal;
       }
+
       #ringWrap {
         position: fixed; bottom: 26%; left: 50%; transform: translateX(-50%);
         width: 110px; height: 110px; display: none; z-index: 5; pointer-events: none;
@@ -41,12 +50,14 @@
                   transition: stroke-dashoffset 0.25s ease; }
       #ringPct  { fill: #fff; font-size: 18px; font-weight: 600;
                   text-anchor: middle; dominant-baseline: central; }
+
       #nightBadge {
         position: fixed; top: 14px; right: 14px;
         background: rgba(255,180,30,0.18); border: 1px solid rgba(255,180,30,0.4);
         color: #ffc84a; font-size: 12px; padding: 5px 11px; border-radius: 14px;
         z-index: 7; display: none;
       }
+
       #placedTick {
         position: fixed; top: 50%; left: 50%;
         transform: translate(-50%,-50%) scale(0);
@@ -59,12 +70,24 @@
     </style>
   </head>
   <body>
+
     <div id="loading">
       <div class="title">🪷 AR Vesak City</div>
-      <div class="sub">Loading 3D models…</div>
-      <div id="loadBar"><div id="loadFill"></div></div>
-      <div id="loadNote" style="font-size:11px;color:#888;margin-top:4px">0 / 5</div>
+      <div class="sub">Loading 3D models…<br><small style="color:#666">First load may take a moment</small></div>
+      <div id="loadBarWrap">
+        <div id="loadBar"><div id="loadFill"></div></div>
+        <div id="loadNote">0 / 6</div>
+      </div>
+      <div id="modelList">
+        <div id="ml-buddha">  ⏳ <span class="wait">Buddha statue</span></div>
+        <div id="ml-lotus1">  ⏳ <span class="wait">Lotus flower 1</span></div>
+        <div id="ml-lotus2">  ⏳ <span class="wait">Lotus flower 2</span></div>
+        <div id="ml-lotusLantern">⏳ <span class="wait">Lotus lantern</span></div>
+        <div id="ml-vesakLantern">⏳ <span class="wait">Vesak lantern</span></div>
+        <div id="ml-stupa">  ⏳ <span class="wait">Stupa</span></div>
+      </div>
     </div>
+
     <div id="ringWrap">
       <svg viewBox="0 0 100 100">
         <circle id="ringBg"   cx="50" cy="50" r="45"/>
@@ -81,140 +104,202 @@
       import { ARButton }   from 'https://unpkg.com/three@0.150.1/examples/jsm/webxr/ARButton.js';
       import { GLTFLoader } from 'https://unpkg.com/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
 
-      // ── Model URLs (raw GitHub) ──────────────────────────────────────────────
+      // ── Raw GitHub URLs (confirmed working) ──────────────────────────────────
+      const BASE = 'https://github.com/ThinukaVinjaya/vesakmodels/raw/main/';
       const URLS = {
-        buddha  : 'https://github.com/ThinukaVinjaya/vesakmodels/raw/refs/heads/main/stone_buddha_statue.glb',
-        lotus1  : 'https://github.com/ThinukaVinjaya/vesakmodels/raw/refs/heads/main/lotus1.glb',
-        lotus2  : 'https://github.com/ThinukaVinjaya/vesakmodels/raw/refs/heads/main/lotus_flower2.glb',
-        lotusLantern : 'https://github.com/ThinukaVinjaya/vesakmodels/raw/refs/heads/main/lotus_lanttern.glb',
-        vesakLantern : 'https://github.com/ThinukaVinjaya/vesakmodels/raw/refs/heads/main/vesak_lanterns.glb',
-        stupa   : 'https://github.com/ThinukaVinjaya/vesakmodels/raw/refs/heads/main/sthupa_srilanka.glb',
+        buddha      : BASE + 'stone_buddha_statue.glb',
+        lotus1      : BASE + 'lotus1.glb',
+        lotus2      : BASE + 'lotus_flower2.glb',
+        lotusLantern: BASE + 'lotus_lanttern.glb',
+        vesakLantern: BASE + 'vesak_lanterns.glb',
+        stupa       : BASE + 'sthupa_srilanka.glb',
       };
 
       // ── DOM ──────────────────────────────────────────────────────────────────
-      const elStatus   = document.getElementById('statusBar');
-      const elRing     = document.getElementById('ringWrap');
-      const elRingFill = document.getElementById('ringFill');
-      const elRingPct  = document.getElementById('ringPct');
-      const elNight    = document.getElementById('nightBadge');
-      const elTick     = document.getElementById('placedTick');
-      const elFill     = document.getElementById('loadFill');
-      const elNote     = document.getElementById('loadNote');
+      const elStatus    = document.getElementById('statusBar');
+      const elRing      = document.getElementById('ringWrap');
+      const elRingFill  = document.getElementById('ringFill');
+      const elRingPct   = document.getElementById('ringPct');
+      const elNight     = document.getElementById('nightBadge');
+      const elTick      = document.getElementById('placedTick');
+      const elFill      = document.getElementById('loadFill');
+      const elNote      = document.getElementById('loadNote');
 
-      // ── Config ───────────────────────────────────────────────────────────────
+      // ── Detection config ─────────────────────────────────────────────────────
       const CIRCUM       = 2 * Math.PI * 45;
       const FRAMES_DAY   = 18;
       const FRAMES_NIGHT = 5;
       const DRIFT_DAY    = 0.06;
       const DRIFT_NIGHT  = 0.18;
-      const FALLBACK_MS  = 3500;
+      const FALLBACK_MS  = 4000;
 
-      // ── State ────────────────────────────────────────────────────────────────
+      // ── Runtime state ────────────────────────────────────────────────────────
       let camera, scene, renderer, reticle;
       let hitTestSource = null, hitTestSourceRequested = false;
       let placed = false, sessionStartTime = null;
       let stableCount = 0;
-      const lastHitPos  = new THREE.Vector3();
-      let isNightMode   = false;
+      const lastHitPos = new THREE.Vector3();
+      let isNightMode  = false;
 
-      const models = {};           // loaded GLTFs keyed by name
+      const models         = {};
       const flyingLanterns = [];
       const pathLights     = [];
       const particleGroups = [];
 
-      // ── Load all models, then init ───────────────────────────────────────────
-      const loader   = new GLTFLoader();
-      const keys     = Object.keys(URLS);
-      let   loaded   = 0;
-
+      // ── Load models ──────────────────────────────────────────────────────────
       async function loadAll() {
-        const total = keys.length;
-        for (const key of keys) {
-          try {
-            const gltf = await new Promise((res, rej) => loader.load(URLS[key], res, undefined, rej));
-            models[key] = gltf.scene;
-            loaded++;
-            const pct = Math.round(loaded / total * 100);
-            elFill.style.width = pct + '%';
-            elNote.textContent = `${loaded} / ${total}`;
-          } catch(e) {
-            console.warn('Failed to load', key, e);
-            loaded++;
-            elFill.style.width = Math.round(loaded / total * 100) + '%';
-            elNote.textContent = `${loaded} / ${total} (${key} failed)`;
-          }
-        }
-        document.getElementById('loading').querySelector('.sub').textContent = 'Tap "Start AR" and point at floor.';
-        setTimeout(() => document.getElementById('loading').style.display = 'none', 600);
+        const loader = new GLTFLoader();
+        const keys   = Object.keys(URLS);
+        let done = 0;
+
+        await Promise.all(keys.map(key =>
+          new Promise(resolve => {
+            loader.load(
+              URLS[key],
+              gltf => {
+                models[key] = gltf.scene;
+                markModel(key, true);
+                done++;
+                updateBar(done, keys.length);
+                resolve();
+              },
+              xhr => {
+                // optional progress per file
+              },
+              err => {
+                console.warn('Failed:', key, err);
+                markModel(key, false);
+                done++;
+                updateBar(done, keys.length);
+                resolve();          // don't block — city builds with what loaded
+              }
+            );
+          })
+        ));
+
+        // All done
+        document.getElementById('loading').querySelector('.sub').textContent =
+          'Ready! Tap "Start AR"';
+        setTimeout(() => {
+          document.getElementById('loading').style.display = 'none';
+        }, 900);
+
         init();
+      }
+
+      function updateBar(done, total) {
+        const pct = Math.round(done / total * 100);
+        elFill.style.width = pct + '%';
+        elNote.textContent = `${done} / ${total} models`;
+      }
+
+      function markModel(key, ok) {
+        const el = document.getElementById('ml-' + key);
+        if (!el) return;
+        el.innerHTML = (ok ? '✅' : '❌') + ' <span class="' + (ok?'ok':'fail') + '">'
+          + el.textContent.replace(/[⏳✅❌]/g,'').trim() + '</span>';
       }
 
       loadAll();
 
-      // ── Helper: clone + fit model into a given size ──────────────────────────
-      function cloneModel(key, targetSize) {
+      // ── Fit & clone helper ───────────────────────────────────────────────────
+      // Scales model so its longest axis = targetSize, lifts bottom to Y=0
+      function cloneModel(key, targetSize, rotY = 0) {
         if (!models[key]) return null;
-        const clone = models[key].clone();
-        // compute bounding box and scale to targetSize on longest axis
-        const box = new THREE.Box3().setFromObject(clone);
+        const obj = models[key].clone(true);
+
+        // enable shadows on all meshes
+        obj.traverse(c => {
+          if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+        });
+
+        const box = new THREE.Box3().setFromObject(obj);
         const sz  = new THREE.Vector3();
         box.getSize(sz);
-        const maxDim = Math.max(sz.x, sz.y, sz.z);
-        if (maxDim > 0) clone.scale.setScalar(targetSize / maxDim);
-        // lift so bottom sits on Y=0
-        const box2 = new THREE.Box3().setFromObject(clone);
-        clone.position.y -= box2.min.y;
-        return clone;
+        const maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
+        obj.scale.setScalar(targetSize / maxDim);
+
+        // lift so bottom sits on floor (Y = 0 in world group)
+        const box2 = new THREE.Box3().setFromObject(obj);
+        obj.position.y -= box2.min.y;
+
+        if (rotY) obj.rotation.y = rotY;
+        return obj;
       }
 
-      // ── Light sensor ─────────────────────────────────────────────────────────
+      // ── Brightness / night sensor ────────────────────────────────────────────
       let videoEl = null, bCanvas = null, bCtx = null;
+
       function startBrightnessSensor() {
-        navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' }, audio:false })
+        navigator.mediaDevices
+          .getUserMedia({ video: { facingMode: 'environment' }, audio: false })
           .then(stream => {
             videoEl = document.createElement('video');
-            videoEl.srcObject = stream; videoEl.playsInline = true;
-            videoEl.muted = true; videoEl.play();
-            bCanvas = document.createElement('canvas'); bCanvas.width = 32; bCanvas.height = 32;
-            bCtx = bCanvas.getContext('2d', { willReadFrequently:true });
+            videoEl.srcObject = stream;
+            videoEl.playsInline = true;
+            videoEl.muted = true;
+            videoEl.play();
+            bCanvas = document.createElement('canvas');
+            bCanvas.width = 32; bCanvas.height = 32;
+            bCtx = bCanvas.getContext('2d', { willReadFrequently: true });
             setInterval(measureBrightness, 1200);
-          }).catch(() => {});
+          })
+          .catch(() => {});
       }
+
       function measureBrightness() {
         if (!videoEl || videoEl.readyState < 2) return;
         bCtx.drawImage(videoEl, 0, 0, 32, 32);
-        const d = bCtx.getImageData(0,0,32,32).data;
+        const d = bCtx.getImageData(0, 0, 32, 32).data;
         let lum = 0;
-        for (let i = 0; i < d.length; i+=4) lum += 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+        for (let i = 0; i < d.length; i += 4)
+          lum += 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
         lum /= 1024;
         const night = lum < 60;
-        if (night !== isNightMode) { isNightMode = night; elNight.style.display = night ? 'block' : 'none'; }
+        if (night !== isNightMode) {
+          isNightMode = night;
+          elNight.style.display = night ? 'block' : 'none';
+        }
       }
 
-      // ── Init three.js ────────────────────────────────────────────────────────
+      // ── Three.js init ────────────────────────────────────────────────────────
       function init() {
-        renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
         renderer.shadowMap.enabled = true;
-        Object.assign(renderer.domElement.style, { position:'absolute', top:'0', left:'0', width:'100%', height:'100%' });
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        Object.assign(renderer.domElement.style, {
+          position: 'absolute', top: '0', left: '0', width: '100%', height: '100%'
+        });
         document.body.appendChild(renderer.domElement);
 
         scene  = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 30);
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 30);
 
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x886644, 1.4));
-        const dir = new THREE.DirectionalLight(0xfff8e0, 0.8);
-        dir.position.set(2, 4, 2); dir.castShadow = true; scene.add(dir);
+        // Lighting
+        const hemi = new THREE.HemisphereLight(0xffeedd, 0x443322, 1.2);
+        hemi.position.set(0, 4, 0);
+        scene.add(hemi);
+        const sun = new THREE.DirectionalLight(0xfff5e0, 0.7);
+        sun.position.set(3, 6, 2);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(1024, 1024);
+        scene.add(sun);
 
+        // Invisible reticle (used only for floor detection math)
         reticle = new THREE.Mesh(
-          new THREE.RingGeometry(0.08, 0.12, 32).rotateX(-Math.PI/2),
-          new THREE.MeshBasicMaterial({ color:0x00ffcc, transparent:true, opacity:0 })
+          new THREE.RingGeometry(0.08, 0.12, 32).rotateX(-Math.PI / 2),
+          new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0 })
         );
-        reticle.matrixAutoUpdate = false; reticle.visible = false; scene.add(reticle);
+        reticle.matrixAutoUpdate = false;
+        reticle.visible = false;
+        scene.add(reticle);
 
-        document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures:['hit-test'] }));
+        document.body.appendChild(
+          ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] })
+        );
 
         renderer.xr.addEventListener('sessionstart', () => {
           sessionStartTime = performance.now();
@@ -228,7 +313,7 @@
         });
 
         window.addEventListener('resize', () => {
-          camera.aspect = window.innerWidth/window.innerHeight;
+          camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
@@ -236,30 +321,34 @@
         renderer.setAnimationLoop(render);
       }
 
-      // ── UI helpers ───────────────────────────────────────────────────────────
+      // ── UI helpers ────────────────────────────────────────────────────────────
       function showStatus(msg) {
-        elStatus.textContent = msg; elStatus.style.display = 'block'; elStatus.style.opacity = '1';
+        elStatus.textContent = msg;
+        elStatus.style.display = 'block';
+        elStatus.style.opacity = '1';
       }
       function hideStatus() {
         elStatus.style.opacity = '0';
-        setTimeout(() => elStatus.style.display = 'none', 400);
+        setTimeout(() => { elStatus.style.display = 'none'; }, 400);
       }
       function setRing(pct) {
-        elRingFill.style.strokeDashoffset = CIRCUM * (1 - pct/100);
+        elRingFill.style.strokeDashoffset = CIRCUM * (1 - pct / 100);
         elRingPct.textContent = Math.round(pct) + '%';
-        const hue = pct < 50 ? 174 : 174 + (pct-50)*1.8;
+        const hue = pct < 50 ? 174 : 174 + (pct - 50) * 1.8;
         elRingFill.style.stroke = `hsl(${hue},100%,55%)`;
       }
 
-      // ── Render loop ──────────────────────────────────────────────────────────
+      // ── Render loop ───────────────────────────────────────────────────────────
       function render(timestamp, frame) {
         if (frame) {
-          const session      = renderer.xr.getSession();
-          const refSpace     = renderer.xr.getReferenceSpace();
+          const session    = renderer.xr.getSession();
+          const refSpace   = renderer.xr.getReferenceSpace();
 
           if (!hitTestSourceRequested && session) {
             session.requestReferenceSpace('viewer').then(rs => {
-              session.requestHitTestSource({ space:rs }).then(src => { hitTestSource = src; });
+              session.requestHitTestSource({ space: rs }).then(src => {
+                hitTestSource = src;
+              });
             });
             hitTestSourceRequested = true;
           }
@@ -275,24 +364,32 @@
                 const pose = results[0].getPose(refSpace);
                 reticle.visible = true;
                 reticle.matrix.fromArray(pose.transform.matrix);
-                const hp   = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
+
+                const hp    = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
                 const drift = hp.distanceTo(lastHitPos);
-                stableCount = drift < maxDrift ? stableCount+1 : (isNightMode ? Math.max(0,stableCount-1) : 0);
+                if (drift < maxDrift) {
+                  stableCount++;
+                } else {
+                  stableCount = isNightMode ? Math.max(0, stableCount - 1) : 0;
+                }
                 lastHitPos.copy(hp);
                 gotHit = true;
-                const pct = Math.min(100, stableCount/maxFrames*100);
+
+                const pct = Math.min(100, (stableCount / maxFrames) * 100);
                 setRing(pct);
                 showStatus((isNightMode ? '🌙 Night — ' : '🔍 ') + 'Detecting floor… ' + Math.round(pct) + '%');
+
                 if (stableCount >= maxFrames) placeCity('hittest');
+
               } else {
                 reticle.visible = false;
-                stableCount = isNightMode ? Math.max(0,stableCount-1) : 0;
-                setRing(Math.min(100, stableCount/maxFrames*100));
+                stableCount = isNightMode ? Math.max(0, stableCount - 1) : 0;
+                setRing(Math.min(100, (stableCount / maxFrames) * 100));
                 showStatus('📱 Point camera at the floor…');
               }
             }
 
-            if (!gotHit && sessionStartTime && performance.now()-sessionStartTime > FALLBACK_MS) {
+            if (!gotHit && sessionStartTime && (performance.now() - sessionStartTime) > FALLBACK_MS) {
               placeCity('fallback');
             }
           }
@@ -304,249 +401,312 @@
         renderer.render(scene, camera);
       }
 
-      // ── Place city ───────────────────────────────────────────────────────────
+      // ── Place city on floor ───────────────────────────────────────────────────
       function placeCity(method) {
-        placed = true; reticle.visible = false; elRing.style.display = 'none';
+        placed = true;
+        reticle.visible = false;
+        elRing.style.display = 'none';
 
         const world = new THREE.Group();
 
         if (method === 'hittest') {
+          // Exact real-world floor from ARCore / ARKit
           world.position.setFromMatrixPosition(reticle.matrix);
           const m = reticle.matrix.elements;
+          // yaw only — keep city perfectly upright
           world.rotation.y = Math.atan2(m[8], m[10]);
         } else {
+          // Camera-math fallback: floor = eye_height - 1.6 m
           const camPos = new THREE.Vector3();
           const camDir = new THREE.Vector3();
           camera.getWorldPosition(camPos);
           camera.getWorldDirection(camDir);
           camDir.y = 0;
-          if (camDir.lengthSq() < 0.001) camDir.set(0,0,-1);
+          if (camDir.lengthSq() < 0.001) camDir.set(0, 0, -1);
           camDir.normalize();
-          world.position.set(camPos.x+camDir.x*1.5, camPos.y-1.6, camPos.z+camDir.z*1.5);
-          world.rotation.y = Math.atan2(camDir.x, camDir.z)+Math.PI;
+          world.position.set(
+            camPos.x + camDir.x * 1.5,
+            camPos.y - 1.6,
+            camPos.z + camDir.z * 1.5
+          );
+          world.rotation.y = Math.atan2(camDir.x, camDir.z) + Math.PI;
         }
 
         scene.add(world);
         buildCity(world);
 
+        // Placed confirmation flash
         elTick.style.transform = 'translate(-50%,-50%) scale(1)';
         elTick.style.opacity   = '1';
-        setTimeout(() => { elTick.style.opacity='0'; elTick.style.transform='translate(-50%,-50%) scale(0.8)'; }, 1200);
-        showStatus('🪷 Vesak City placed' + (method==='fallback' ? ' (estimated floor)' : ''));
+        setTimeout(() => {
+          elTick.style.opacity   = '0';
+          elTick.style.transform = 'translate(-50%,-50%) scale(0.8)';
+        }, 1200);
+
+        showStatus('🪷 Vesak City placed' + (method === 'fallback' ? ' (estimated floor)' : ''));
         setTimeout(hideStatus, 2800);
       }
 
-      // ── Build the whole city ─────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════════════════════════════
+      //  CITY LAYOUT
+      // ═══════════════════════════════════════════════════════════════════════
+      //
+      //  (user)  ←  you stand here, city opens away from you
+      //
+      //  z=0   ── entrance ──────────────────────────────
+      //  z=-2  ── lotus rows + lotus lanterns on poles ──
+      //  z=-4  ─────────────────────────────────────────
+      //  z=-6  ─────────────────────────────────────────
+      //  z=-8  ── stupa (left -4, right +4) ─────────────
+      //  z=-10 ── Buddha (centre 0) ─────────────────────
+      //
+      // ═══════════════════════════════════════════════════════════════════════
+
       function buildCity(world) {
         placeBuddha(world);
-        placeStupa(world);
+        placeStupas(world);
         placeLotusRows(world);
-        placeLotusLanterns(world);
+        placeLotusLanternPoles(world);
         placeFlyingLanterns(world);
         addGardenLights(world);
         addFireflies(world);
       }
 
-      // ── Buddha — centrepiece, rear centre ───────────────────────────────────
+      // ── 1. Buddha — rear centrepiece ────────────────────────────────────────
       function placeBuddha(world) {
-        const m = cloneModel('buddha', 2.0);
-        if (!m) return;
-        m.position.set(0, 0, -5);
-        m.rotation.y = 0;
-        world.add(m);
-        // soft golden glow around statue
-        const glow = new THREE.PointLight(0xffcc66, 1.2, 4);
-        glow.position.set(0, 1.2, -5);
+        const m = cloneModel('buddha', 2.2, 0);
+        if (m) {
+          m.position.set(0, 0, -9.5);
+          world.add(m);
+        }
+        // golden halo glow
+        const glow = new THREE.PointLight(0xffcc55, 1.4, 5.5);
+        glow.position.set(0, 1.6, -9.5);
         world.add(glow);
-        pathLights.push({ light: glow, phase: 0.3 });
+        pathLights.push({ light: glow, phase: 0.2 });
       }
 
-      // ── Stupa — flanking the buddha left & right ─────────────────────────────
-      function placeStupa(world) {
-        [[-3.5, 0, -5], [3.5, 0, -5]].forEach(([x, y, z], idx) => {
-          const m = cloneModel('stupa', 2.5);
-          if (!m) return;
-          m.position.set(x, y, z);
-          m.rotation.y = idx === 0 ? 0.3 : -0.3;
-          world.add(m);
+      // ── 2. Stupas — flanking buddha ──────────────────────────────────────────
+      function placeStupas(world) {
+        const positions = [
+          { x: -4.0, z: -8.0, ry:  0.25 },
+          { x:  4.0, z: -8.0, ry: -0.25 },
+        ];
+        positions.forEach(({ x, z, ry }) => {
+          const m = cloneModel('stupa', 2.8, ry);
+          if (m) {
+            m.position.set(x, 0, z);
+            world.add(m);
+          }
+          // soft white glow at stupa base
+          const l = new THREE.PointLight(0xffeedd, 0.6, 4);
+          l.position.set(x, 0.8, z);
+          world.add(l);
+          pathLights.push({ light: l, phase: Math.random() * Math.PI * 2 });
         });
       }
 
-      // ── Lotus flowers — two rows lining the path ─────────────────────────────
+      // ── 3. Lotus flowers — lining both sides of the path ────────────────────
       function placeLotusRows(world) {
-        const lotusKeys = ['lotus1', 'lotus2'];
-        const rowZ  = (i) => -i * 1.2 - 0.8;
-        const sides = [1.8, -1.8, 2.6, -2.6];
+        const lotusKeys  = ['lotus1', 'lotus2'];
+        const leftX  = -2.2;
+        const rightX =  2.2;
+        const outerL = -3.4;
+        const outerR =  3.4;
 
-        for (let i = 0; i < 10; i++) {
-          sides.forEach((sx, si) => {
-            const key  = lotusKeys[(i + si) % 2];
-            const size = 0.25 + Math.random() * 0.18;
-            const m    = cloneModel(key, size);
+        for (let i = 0; i < 12; i++) {
+          const z = -i * 0.9 - 0.6;
+
+          // inner row — left & right
+          [leftX, rightX].forEach((sx, si) => {
+            const m = cloneModel(lotusKeys[(i + si) % 2], 0.30 + Math.random() * 0.12);
             if (!m) return;
-            m.position.set(sx + (Math.random()-0.5)*0.3, 0, rowZ(i));
+            m.position.set(sx + (Math.random() - 0.5) * 0.25, 0, z + (Math.random() - 0.5) * 0.15);
             m.rotation.y = Math.random() * Math.PI * 2;
             world.add(m);
           });
+
+          // outer scattered row
+          if (i % 2 === 0) {
+            [outerL, outerR].forEach((sx, si) => {
+              const m = cloneModel(lotusKeys[si % 2], 0.22 + Math.random() * 0.10);
+              if (!m) return;
+              m.position.set(sx + (Math.random() - 0.5) * 0.4, 0, z + (Math.random() - 0.5) * 0.3);
+              m.rotation.y = Math.random() * Math.PI * 2;
+              world.add(m);
+            });
+          }
         }
 
-        // Extra lotus clusters near stupa base
-        [[-3.5,0,-4],[3.5,0,-4],[-3.5,0,-6],[3.5,0,-6]].forEach(([x,y,z]) => {
-          for (let c = 0; c < 3; c++) {
-            const key = lotusKeys[c % 2];
-            const m   = cloneModel(key, 0.2 + Math.random()*0.15);
-            if (!m) return;
-            m.position.set(x+(Math.random()-0.5)*0.6, y, z+(Math.random()-0.5)*0.6);
-            m.rotation.y = Math.random()*Math.PI*2;
-            world.add(m);
-          }
+        // Lotus clusters around stupa bases
+        [[-4, -7.5], [4, -7.5], [-4, -8.5], [4, -8.5],
+         [-4, -9.2], [4, -9.2], [-1.2, -9.8], [1.2, -9.8]].forEach(([x, z]) => {
+          const m = cloneModel(lotusKeys[Math.round(Math.random())], 0.20 + Math.random() * 0.10);
+          if (!m) return;
+          m.position.set(x + (Math.random() - 0.5) * 0.5, 0, z + (Math.random() - 0.5) * 0.3);
+          m.rotation.y = Math.random() * Math.PI * 2;
+          world.add(m);
         });
       }
 
-      // ── Lotus lanterns — line the path on poles ──────────────────────────────
-      function placeLotusLanterns(world) {
-        const poleZPositions = [-1.2, -2.4, -3.6, -4.8, -6.0];
-        const sideXPositions = [2.2, -2.2];
+      // ── 4. Lotus lanterns on poles — lining the path ─────────────────────────
+      function placeLotusLanternPoles(world) {
+        const poleZs = [-0.8, -1.8, -2.8, -3.8, -4.8, -5.8];
+        const sideXs = [-2.0, 2.0];
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x5a3820, roughness: 0.85 });
 
-        poleZPositions.forEach((z, zi) => {
-          sideXPositions.forEach((sx, si) => {
-            // pole
+        poleZs.forEach((z, zi) => {
+          sideXs.forEach((sx, si) => {
+            // Wooden pole
             const pole = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.03, 0.04, 2.0, 8),
-              new THREE.MeshStandardMaterial({ color: 0x5a3820, roughness: 0.85 })
+              new THREE.CylinderGeometry(0.025, 0.032, 1.9, 8),
+              poleMat
             );
-            pole.position.set(sx, 1.0, z);
+            pole.position.set(sx, 0.95, z);
             world.add(pole);
 
-            // lotus lantern model on top of pole
-            const m = cloneModel('lotusLantern', 0.45);
-            if (m) {
-              m.position.set(sx, 2.05, z);
-              m.rotation.y = Math.random() * Math.PI * 2;
-              world.add(m);
+            // Lotus lantern model on pole top
+            const lan = cloneModel('lotusLantern', 0.42);
+            if (lan) {
+              lan.position.set(sx, 1.95, z);
+              lan.rotation.y = (zi * si + si) * 0.6 + Math.random() * 0.4;
+              world.add(lan);
             }
 
-            // warm glow from each lantern
-            const light = new THREE.PointLight(0xff8844, 0.7, 3.5);
-            light.position.set(sx, 2.1, z);
+            // Warm orange glow from lantern
+            const light = new THREE.PointLight(0xff7733, 0.75, 3.8);
+            light.position.set(sx, 2.05, z);
             world.add(light);
-            pathLights.push({ light, phase: (zi*si + si) * 0.8 });
+            pathLights.push({ light, phase: (zi + si * 3) * 0.55 });
           });
         });
       }
 
-      // ── Flying Vesak lanterns ────────────────────────────────────────────────
+      // ── 5. Flying Vesak lanterns ─────────────────────────────────────────────
       function placeFlyingLanterns(world) {
-        const count = 14;
-        for (let i = 0; i < count; i++) {
-          const m = cloneModel('vesakLantern', 0.5);
-          if (!m) {
-            // fallback geometry if model failed
-            const fallback = createFallbackSkyLantern();
-            fallback.position.set((Math.random()-0.5)*6, 0.8+Math.random()*0.5, -2-Math.random()*7);
-            setFlyingData(fallback, i);
-            flyingLanterns.push(fallback);
-            world.add(fallback);
-            continue;
-          }
-          m.position.set((Math.random()-0.5)*6, 0.8+Math.random()*0.5, -2-Math.random()*7);
-          setFlyingData(m, i);
-          flyingLanterns.push(m);
-          world.add(m);
+        for (let i = 0; i < 16; i++) {
+          const startX = (Math.random() - 0.5) * 7;
+          const startY = 0.6 + Math.random() * 0.6;
+          const startZ = -1 - Math.random() * 9;
 
-          // each flying lantern has a warm glow
-          const glow = new THREE.PointLight(0xffaa44, 0.6, 2.5);
-          glow.position.copy(m.position);
-          world.add(glow);
-          m.userData.glowLight = glow;
+          const lantern = cloneModel('vesakLantern', 0.55) || buildFallbackLantern();
+          lantern.position.set(startX, startY, startZ);
+
+          lantern.userData = {
+            speed : 0.009 + Math.random() * 0.015,
+            driftX: (Math.random() - 0.5) * 0.0013,
+            driftZ: -0.001  - Math.random() * 0.0009,
+            phase : (i / 16) * Math.PI * 2,
+            baseY : startY,
+          };
+
+          flyingLanterns.push(lantern);
+          world.add(lantern);
+
+          // Each flying lantern casts its own warm light
+          const gl = new THREE.PointLight(0xffaa44, 0.55, 2.8);
+          gl.position.set(startX, startY, startZ);
+          world.add(gl);
+          lantern.userData.glowLight = gl;
         }
       }
 
-      function setFlyingData(obj, i) {
-        obj.userData.flying = true;
-        obj.userData.speed  = 0.010 + Math.random() * 0.016;
-        obj.userData.driftX = (Math.random()-0.5) * 0.0014;
-        obj.userData.driftZ = -0.0012 - Math.random() * 0.001;
-        obj.userData.phase  = (i / 14) * Math.PI * 2;
-        obj.userData.initY  = obj.position.y;
-      }
-
-      function createFallbackSkyLantern() {
+      function buildFallbackLantern() {
         const g = new THREE.Group();
-        const b = new THREE.Mesh(new THREE.SphereGeometry(0.18,12,10),
-          new THREE.MeshStandardMaterial({color:0xffeb99,emissive:0xffd36b,emissiveIntensity:1.2,transparent:true,opacity:0.86}));
-        b.scale.set(1,1.3,1); g.add(b);
-        const f = new THREE.Mesh(new THREE.ConeGeometry(0.05,0.16,8),
-          new THREE.MeshStandardMaterial({color:0xffa533,emissive:0xff7700,emissiveIntensity:3}));
-        f.position.y=-0.24; f.rotation.x=Math.PI; g.add(f);
-        g.add(new THREE.PointLight(0xffb060,1.0,3));
+        g.add(new THREE.Mesh(
+          new THREE.SphereGeometry(0.16, 10, 8),
+          new THREE.MeshStandardMaterial({ color: 0xffeb99, emissive: 0xffd36b, emissiveIntensity: 1.3, transparent: true, opacity: 0.88 })
+        ));
+        const flame = new THREE.Mesh(
+          new THREE.ConeGeometry(0.04, 0.14, 8),
+          new THREE.MeshStandardMaterial({ color: 0xffa533, emissive: 0xff6600, emissiveIntensity: 3 })
+        );
+        flame.position.y = -0.22; flame.rotation.x = Math.PI; g.add(flame);
         return g;
       }
 
-      // ── Garden ambient lights ────────────────────────────────────────────────
+      // ── 6. Garden ambient orbs ────────────────────────────────────────────────
       function addGardenLights(world) {
-        [[-2.8,0.3,-2],[ 2.8,0.3,-2],[-2.8,0.3,-4],[ 2.8,0.3,-4],
-         [-2.8,0.3,-6],[ 2.8,0.3,-6],[  0,  0.3,-8]].forEach(([x,y,z]) => {
-          const orb = new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8),
-            new THREE.MeshStandardMaterial({color:0xffd580,emissive:0xffd150,emissiveIntensity:1.1,transparent:true,opacity:0.9}));
-          orb.position.set(x,y,z); world.add(orb);
-          const l = new THREE.PointLight(0xffd580,0.5,3);
-          l.position.set(x,y,z); world.add(l);
-          pathLights.push({ light:l, phase:Math.random()*Math.PI*2 });
+        const pts = [
+          [-3.0, 0.25, -2.0], [ 3.0, 0.25, -2.0],
+          [-3.0, 0.25, -4.5], [ 3.0, 0.25, -4.5],
+          [-3.0, 0.25, -7.0], [ 3.0, 0.25, -7.0],
+          [ 0.0, 0.25, -5.5],
+        ];
+        pts.forEach(([x, y, z]) => {
+          const orb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.07, 8, 8),
+            new THREE.MeshStandardMaterial({ color: 0xffd580, emissive: 0xffd150, emissiveIntensity: 1.2, transparent: true, opacity: 0.9 })
+          );
+          orb.position.set(x, y, z);
+          world.add(orb);
+          const l = new THREE.PointLight(0xffd580, 0.5, 3.0);
+          l.position.set(x, y, z);
+          world.add(l);
+          pathLights.push({ light: l, phase: Math.random() * Math.PI * 2 });
         });
       }
 
-      // ── Fireflies ────────────────────────────────────────────────────────────
+      // ── 7. Fireflies ──────────────────────────────────────────────────────────
       function addFireflies(world) {
-        const g = new THREE.Group();
-        for (let i = 0; i < 28; i++) {
-          const f = new THREE.Mesh(new THREE.SphereGeometry(0.035,6,6),
-            new THREE.MeshStandardMaterial({color:0xffe7aa,emissive:0xffd680,emissiveIntensity:1.4,transparent:true,opacity:0.9}));
-          f.position.set((Math.random()-0.5)*7, 0.2+Math.random()*2.0, -0.5-Math.random()*9);
-          g.add(f);
+        const grp = new THREE.Group();
+        for (let i = 0; i < 32; i++) {
+          const f = new THREE.Mesh(
+            new THREE.SphereGeometry(0.03, 6, 6),
+            new THREE.MeshStandardMaterial({ color: 0xffe7aa, emissive: 0xffd680, emissiveIntensity: 1.5, transparent: true, opacity: 0.88 })
+          );
+          f.position.set(
+            (Math.random() - 0.5) * 8,
+            0.2 + Math.random() * 2.2,
+            -0.5 - Math.random() * 10
+          );
+          grp.add(f);
         }
-        world.add(g); particleGroups.push(g);
+        world.add(grp);
+        particleGroups.push(grp);
       }
 
-      // ── Animation ────────────────────────────────────────────────────────────
+      // ── Animate flying lanterns ───────────────────────────────────────────────
       function animateFlyingLanterns(t) {
         flyingLanterns.forEach(l => {
           l.position.y += l.userData.speed;
-          l.position.x += l.userData.driftX + Math.sin(t*0.001+l.userData.phase)*0.0007;
+          l.position.x += l.userData.driftX + Math.sin(t * 0.001 + l.userData.phase) * 0.0006;
           l.position.z += l.userData.driftZ;
-          l.rotation.y += 0.003;
-          l.rotation.z  = Math.sin(t*0.0009+l.userData.phase)*0.04;
+          l.rotation.y  += 0.003;
+          l.rotation.z   = Math.sin(t * 0.0009 + l.userData.phase) * 0.035;
 
-          // sync glow with lantern
           if (l.userData.glowLight) {
             l.userData.glowLight.position.copy(l.position);
-            l.userData.glowLight.intensity = 0.5 + 0.2*Math.sin(t*0.005+l.userData.phase);
+            l.userData.glowLight.intensity = 0.45 + 0.18 * Math.sin(t * 0.004 + l.userData.phase);
           }
 
-          if (l.position.y > 12) {
-            l.position.y = l.userData.initY || 0.8;
-            l.position.x = (Math.random()-0.5)*6;
-            l.position.z = -2-Math.random()*7;
+          if (l.position.y > 13) {
+            l.position.y = l.userData.baseY || 0.7;
+            l.position.x = (Math.random() - 0.5) * 7;
+            l.position.z = -1 - Math.random() * 9;
           }
         });
       }
 
+      // ── Animate flickering lights ─────────────────────────────────────────────
       function animateLights(t) {
-        pathLights.forEach(({light,phase}) => {
-          light.intensity = 0.55 + 0.22*Math.sin(t*0.005+phase);
-          if (light.color) light.color.setHSL(0.08, 0.85, 0.52+0.1*Math.sin(t*0.009+phase));
+        pathLights.forEach(({ light, phase }) => {
+          light.intensity = 0.5 + 0.22 * Math.sin(t * 0.005 + phase);
+          if (light.color) light.color.setHSL(0.08, 0.85, 0.50 + 0.10 * Math.sin(t * 0.009 + phase));
         });
       }
 
+      // ── Animate fireflies ─────────────────────────────────────────────────────
       function animateParticles(t) {
-        particleGroups.forEach((g,idx) => {
-          g.children.forEach((p,i) => {
-            p.position.y += 0.0018+0.002*idx;
-            p.position.x += Math.sin(t*0.0007+i)*0.0006;
-            if (p.position.y > 2.8+idx*0.5) p.position.y = 0.2;
+        particleGroups.forEach((grp, idx) => {
+          grp.children.forEach((p, i) => {
+            p.position.y += 0.0017 + 0.0015 * idx;
+            p.position.x += Math.sin(t * 0.0007 + i * 0.7) * 0.0006;
+            if (p.position.y > 2.8 + idx * 0.4) p.position.y = 0.18;
           });
         });
       }
+
     </script>
   </body>
 </html>
