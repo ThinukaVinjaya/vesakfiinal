@@ -12,82 +12,75 @@
       #loading {
         position: fixed; inset: 0;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.93); color: #fff; z-index: 20; gap: 14px;
-        text-align: center; padding: 28px;
+        background: rgba(0,0,0,0.88); color: #fff; z-index: 20; gap: 12px; text-align: center; padding: 28px;
       }
       #loading .title { font-size: 22px; font-weight: bold; color: #ffd580; letter-spacing: 0.5px; }
       #loading .sub   { font-size: 13px; color: #bbb; line-height: 1.6; }
 
-      #loadBarWrap { width: 220px; }
-      #loadBar { width: 100%; height: 5px; background: rgba(255,255,255,0.15); border-radius: 3px; overflow: hidden; }
-      #loadFill { height: 100%; width: 0%; background: linear-gradient(90deg,#ffaa33,#ffd580); border-radius: 3px; transition: width 0.35s ease; }
-      #loadNote { font-size: 11px; color: #888; margin-top: 6px; text-align: center; }
-
-      #modelList { font-size: 11px; color: #666; line-height: 1.9; text-align: left; }
-      #modelList span.ok   { color: #44cc88; }
-      #modelList span.fail { color: #ee6655; }
-      #modelList span.wait { color: #888; }
-
+      /* ── Status bar ─────────────────────────────────── */
       #statusBar {
         position: fixed; bottom: 24px; left: 50%;
         transform: translateX(-50%);
-        background: rgba(0,0,0,0.68); backdrop-filter: blur(8px);
-        color: #fff; font-size: 13px; padding: 10px 20px; border-radius: 24px;
-        z-index: 6; display: none; text-align: center;
-        border: 1px solid rgba(255,255,255,0.13); transition: opacity 0.4s;
+        background: rgba(0,0,0,0.65);
+        backdrop-filter: blur(8px);
+        color: #fff; font-size: 13px;
+        padding: 10px 20px; border-radius: 24px;
+        z-index: 6; display: none;
+        text-align: center; white-space: nowrap;
+        border: 1px solid rgba(255,255,255,0.12);
+        transition: opacity 0.4s;
         max-width: 88vw; white-space: normal;
       }
 
+      /* progress ring */
       #ringWrap {
-        position: fixed; bottom: 26%; left: 50%; transform: translateX(-50%);
-        width: 110px; height: 110px; display: none; z-index: 5; pointer-events: none;
+        position: fixed;
+        bottom: 26%; left: 50%;
+        transform: translateX(-50%);
+        width: 110px; height: 110px;
+        display: none; z-index: 5;
+        pointer-events: none;
       }
       #ringWrap svg { width: 100%; height: 100%; }
-      #ringBg   { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 5; }
-      #ringFill { fill: none; stroke: #00ffcc; stroke-width: 5; stroke-linecap: round;
-                  stroke-dasharray: 283; stroke-dashoffset: 283;
-                  transform: rotate(-90deg); transform-origin: 50% 50%;
-                  transition: stroke-dashoffset 0.25s ease; }
-      #ringPct  { fill: #fff; font-size: 18px; font-weight: 600;
-                  text-anchor: middle; dominant-baseline: central; }
+      #ringBg  { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 5; }
+      #ringFill{ fill: none; stroke: #00ffcc; stroke-width: 5;
+                 stroke-linecap: round;
+                 stroke-dasharray: 283; stroke-dashoffset: 283;
+                 transform: rotate(-90deg); transform-origin: 50% 50%;
+                 transition: stroke-dashoffset 0.25s ease; }
+      #ringPct { fill: #fff; font-size: 18px; font-weight: 600;
+                 text-anchor: middle; dominant-baseline: central; }
 
+      /* night badge */
       #nightBadge {
         position: fixed; top: 14px; right: 14px;
-        background: rgba(255,180,30,0.18); border: 1px solid rgba(255,180,30,0.4);
-        color: #ffc84a; font-size: 12px; padding: 5px 11px; border-radius: 14px;
+        background: rgba(255,180,30,0.18);
+        border: 1px solid rgba(255,180,30,0.4);
+        color: #ffc84a; font-size: 12px;
+        padding: 5px 11px; border-radius: 14px;
         z-index: 7; display: none;
       }
 
+      /* placed tick */
       #placedTick {
         position: fixed; top: 50%; left: 50%;
         transform: translate(-50%,-50%) scale(0);
-        background: rgba(0,200,120,0.22); border: 2px solid #00d484;
+        background: rgba(0,200,120,0.22);
+        border: 2px solid #00d484;
         border-radius: 50%; width: 72px; height: 72px;
         display: flex; align-items: center; justify-content: center;
-        color: #00d484; font-size: 32px; z-index: 8; pointer-events: none;
-        transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.5s; opacity: 0;
+        color: #00d484; font-size: 32px;
+        z-index: 8; pointer-events: none;
+        transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.5s;
+        opacity: 0;
       }
     </style>
   </head>
   <body>
-
     <div id="loading">
       <div class="title">🪷 AR Vesak City</div>
-      <div class="sub">Loading 3D models…<br><small style="color:#666">First load may take a moment</small></div>
-      <div id="loadBarWrap">
-        <div id="loadBar"><div id="loadFill"></div></div>
-        <div id="loadNote">0 / 6</div>
-      </div>
-      <div id="modelList">
-        <div id="ml-buddha">  ⏳ <span class="wait">Buddha statue</span></div>
-        <div id="ml-lotus1">  ⏳ <span class="wait">Lotus flower 1</span></div>
-        <div id="ml-lotus2">  ⏳ <span class="wait">Lotus flower 2</span></div>
-        <div id="ml-lotusLantern">⏳ <span class="wait">Lotus lantern</span></div>
-        <div id="ml-vesakLantern">⏳ <span class="wait">Vesak lantern</span></div>
-        <div id="ml-stupa">  ⏳ <span class="wait">Stupa</span></div>
-      </div>
+      <div class="sub">Tap "Start AR" then point your<br>camera at the floor ahead of you.</div>
     </div>
-
     <div id="ringWrap">
       <svg viewBox="0 0 100 100">
         <circle id="ringBg"   cx="50" cy="50" r="45"/>
@@ -100,195 +93,90 @@
     <div id="placedTick">✓</div>
 
     <script type="module">
-      import * as THREE     from 'https://unpkg.com/three@0.150.1/build/three.module.js';
-      import { ARButton }   from 'https://unpkg.com/three@0.150.1/examples/jsm/webxr/ARButton.js';
-      import { GLTFLoader } from 'https://unpkg.com/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
+      import * as THREE from 'https://unpkg.com/three@0.150.1/build/three.module.js';
+      import { ARButton } from 'https://unpkg.com/three@0.150.1/examples/jsm/webxr/ARButton.js';
 
-      // ── Raw GitHub URLs (confirmed working) ──────────────────────────────────
-      const BASE = 'https://github.com/ThinukaVinjaya/vesakmodels/raw/main/';
-      const URLS = {
-        buddha      : BASE + 'stone_buddha_statue.glb',
-        lotus1      : BASE + 'lotus1.glb',
-        lotus2      : BASE + 'lotus_flower2.glb',
-        lotusLantern: BASE + 'lotus_lanttern.glb',
-        vesakLantern: BASE + 'vesak_lanterns.glb',
-        stupa       : BASE + 'sthupa_srilanka.glb',
-      };
-
-      // ── DOM ──────────────────────────────────────────────────────────────────
+      // ── DOM handles ──────────────────────────────────────────────────────────
       const elStatus    = document.getElementById('statusBar');
       const elRing      = document.getElementById('ringWrap');
       const elRingFill  = document.getElementById('ringFill');
       const elRingPct   = document.getElementById('ringPct');
       const elNight     = document.getElementById('nightBadge');
       const elTick      = document.getElementById('placedTick');
-      const elFill      = document.getElementById('loadFill');
-      const elNote      = document.getElementById('loadNote');
 
-      // ── Detection config ─────────────────────────────────────────────────────
-      const CIRCUM       = 2 * Math.PI * 45;
-      const FRAMES_DAY   = 18;
-      const FRAMES_NIGHT = 5;
-      const DRIFT_DAY    = 0.06;
-      const DRIFT_NIGHT  = 0.18;
-      const FALLBACK_MS  = 4000;
+      // ── Config ───────────────────────────────────────────────────────────────
+      const CIRCUM        = 2 * Math.PI * 45;          // SVG ring circumference
+      const FRAMES_DAY    = 18;    // stable frames needed in good light
+      const FRAMES_NIGHT  = 5;     // relaxed frames needed at night / low light
+      const DRIFT_DAY     = 0.06;  // max stable drift  (m)
+      const DRIFT_NIGHT   = 0.18;  // relaxed drift threshold at night
+      const FALLBACK_MS   = 3500;  // ms before using camera-math fallback
 
-      // ── Runtime state ────────────────────────────────────────────────────────
+      // ── State ────────────────────────────────────────────────────────────────
       let camera, scene, renderer, reticle;
       let hitTestSource = null, hitTestSourceRequested = false;
       let placed = false, sessionStartTime = null;
       let stableCount = 0;
       const lastHitPos = new THREE.Vector3();
-      let isNightMode  = false;
 
-      const models         = {};
-      const flyingLanterns = [];
-      const pathLights     = [];
-      const particleGroups = [];
+      let isNightMode = false;     // detected from camera brightness
 
-      // ── Load models ──────────────────────────────────────────────────────────
-      async function loadAll() {
-        const loader = new GLTFLoader();
-        const keys   = Object.keys(URLS);
-        let done = 0;
+      const flyingLanterns = [], pathLights = [], particleGroups = [];
 
-        await Promise.all(keys.map(key =>
-          new Promise(resolve => {
-            loader.load(
-              URLS[key],
-              gltf => {
-                models[key] = gltf.scene;
-                markModel(key, true);
-                done++;
-                updateBar(done, keys.length);
-                resolve();
-              },
-              xhr => {
-                // optional progress per file
-              },
-              err => {
-                console.warn('Failed:', key, err);
-                markModel(key, false);
-                done++;
-                updateBar(done, keys.length);
-                resolve();          // don't block — city builds with what loaded
-              }
-            );
-          })
-        ));
-
-        // All done
-        document.getElementById('loading').querySelector('.sub').textContent =
-          'Ready! Tap "Start AR"';
-        setTimeout(() => {
-          document.getElementById('loading').style.display = 'none';
-        }, 900);
-
-        init();
-      }
-
-      function updateBar(done, total) {
-        const pct = Math.round(done / total * 100);
-        elFill.style.width = pct + '%';
-        elNote.textContent = `${done} / ${total} models`;
-      }
-
-      function markModel(key, ok) {
-        const el = document.getElementById('ml-' + key);
-        if (!el) return;
-        el.innerHTML = (ok ? '✅' : '❌') + ' <span class="' + (ok?'ok':'fail') + '">'
-          + el.textContent.replace(/[⏳✅❌]/g,'').trim() + '</span>';
-      }
-
-      loadAll();
-
-      // ── Fit & clone helper ───────────────────────────────────────────────────
-      // Scales model so its longest axis = targetSize, lifts bottom to Y=0
-      function cloneModel(key, targetSize, rotY = 0) {
-        if (!models[key]) return null;
-        const obj = models[key].clone(true);
-
-        // enable shadows on all meshes
-        obj.traverse(c => {
-          if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
-        });
-
-        const box = new THREE.Box3().setFromObject(obj);
-        const sz  = new THREE.Vector3();
-        box.getSize(sz);
-        const maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
-        obj.scale.setScalar(targetSize / maxDim);
-
-        // lift so bottom sits on floor (Y = 0 in world group)
-        const box2 = new THREE.Box3().setFromObject(obj);
-        obj.position.y -= box2.min.y;
-
-        if (rotY) obj.rotation.y = rotY;
-        return obj;
-      }
-
-      // ── Brightness / night sensor ────────────────────────────────────────────
-      let videoEl = null, bCanvas = null, bCtx = null;
+      // ── Light sensor (canvas sample of video feed) ───────────────────────────
+      let videoEl = null, brightnessCanvas = null, brightnessCtx = null;
 
       function startBrightnessSensor() {
-        navigator.mediaDevices
-          .getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+        // Only run once; grab the camera video track from getUserMedia
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
           .then(stream => {
             videoEl = document.createElement('video');
             videoEl.srcObject = stream;
             videoEl.playsInline = true;
             videoEl.muted = true;
             videoEl.play();
-            bCanvas = document.createElement('canvas');
-            bCanvas.width = 32; bCanvas.height = 32;
-            bCtx = bCanvas.getContext('2d', { willReadFrequently: true });
+            brightnessCanvas = document.createElement('canvas');
+            brightnessCanvas.width = 32; brightnessCanvas.height = 32;
+            brightnessCtx = brightnessCanvas.getContext('2d', { willReadFrequently: true });
             setInterval(measureBrightness, 1200);
           })
-          .catch(() => {});
+          .catch(() => {}); // if denied, default to day mode
       }
 
       function measureBrightness() {
         if (!videoEl || videoEl.readyState < 2) return;
-        bCtx.drawImage(videoEl, 0, 0, 32, 32);
-        const d = bCtx.getImageData(0, 0, 32, 32).data;
+        brightnessCtx.drawImage(videoEl, 0, 0, 32, 32);
+        const d = brightnessCtx.getImageData(0, 0, 32, 32).data;
         let lum = 0;
-        for (let i = 0; i < d.length; i += 4)
+        for (let i = 0; i < d.length; i += 4) {
           lum += 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-        lum /= 1024;
-        const night = lum < 60;
+        }
+        lum /= (32 * 32);
+        const night = lum < 60;   // 0-255 scale; <60 = dark scene
         if (night !== isNightMode) {
           isNightMode = night;
           elNight.style.display = night ? 'block' : 'none';
         }
       }
 
-      // ── Three.js init ────────────────────────────────────────────────────────
+      // ── Init ─────────────────────────────────────────────────────────────────
+      init(); startLoop();
+
       function init() {
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        Object.assign(renderer.domElement.style, {
-          position: 'absolute', top: '0', left: '0', width: '100%', height: '100%'
-        });
+        Object.assign(renderer.domElement.style, { position:'absolute', top:'0', left:'0', width:'100%', height:'100%' });
         document.body.appendChild(renderer.domElement);
 
         scene  = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 30);
 
-        // Lighting
-        const hemi = new THREE.HemisphereLight(0xffeedd, 0x443322, 1.2);
-        hemi.position.set(0, 4, 0);
-        scene.add(hemi);
-        const sun = new THREE.DirectionalLight(0xfff5e0, 0.7);
-        sun.position.set(3, 6, 2);
-        sun.castShadow = true;
-        sun.shadow.mapSize.set(1024, 1024);
-        scene.add(sun);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x886644, 1.1));
+        const dir = new THREE.DirectionalLight(0xfff8e0, 0.6);
+        dir.position.set(1, 3, 2); scene.add(dir);
 
-        // Invisible reticle (used only for floor detection math)
         reticle = new THREE.Mesh(
           new THREE.RingGeometry(0.08, 0.12, 32).rotateX(-Math.PI / 2),
           new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0 })
@@ -302,6 +190,7 @@
         );
 
         renderer.xr.addEventListener('sessionstart', () => {
+          document.getElementById('loading').style.display = 'none';
           sessionStartTime = performance.now();
           showStatus('🔍 Aim at the floor ahead…');
           elRing.style.display = 'block';
@@ -318,10 +207,9 @@
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        renderer.setAnimationLoop(render);
+        setTimeout(() => document.getElementById('loading').style.display = 'none', 700);
       }
 
-      // ── UI helpers ────────────────────────────────────────────────────────────
       function showStatus(msg) {
         elStatus.textContent = msg;
         elStatus.style.display = 'block';
@@ -329,58 +217,69 @@
       }
       function hideStatus() {
         elStatus.style.opacity = '0';
-        setTimeout(() => { elStatus.style.display = 'none'; }, 400);
+        setTimeout(() => elStatus.style.display = 'none', 400);
       }
       function setRing(pct) {
-        elRingFill.style.strokeDashoffset = CIRCUM * (1 - pct / 100);
+        // pct: 0-100
+        const offset = CIRCUM * (1 - pct / 100);
+        elRingFill.style.strokeDashoffset = offset;
         elRingPct.textContent = Math.round(pct) + '%';
+        // colour shift: cyan → gold → green
         const hue = pct < 50 ? 174 : 174 + (pct - 50) * 1.8;
         elRingFill.style.stroke = `hsl(${hue},100%,55%)`;
       }
 
-      // ── Render loop ───────────────────────────────────────────────────────────
+      // ── Main loop ────────────────────────────────────────────────────────────
+      function startLoop() { renderer.setAnimationLoop(render); }
+
       function render(timestamp, frame) {
         if (frame) {
-          const session    = renderer.xr.getSession();
-          const refSpace   = renderer.xr.getReferenceSpace();
+          const session       = renderer.xr.getSession();
+          const referenceSpace = renderer.xr.getReferenceSpace();
 
+          // Request hit-test source once
           if (!hitTestSourceRequested && session) {
             session.requestReferenceSpace('viewer').then(rs => {
-              session.requestHitTestSource({ space: rs }).then(src => {
-                hitTestSource = src;
-              });
+              session.requestHitTestSource({ space: rs }).then(src => { hitTestSource = src; });
             });
             hitTestSourceRequested = true;
           }
 
           if (!placed) {
+            // ── Choose thresholds based on light level ────────────────────────
             const maxFrames = isNightMode ? FRAMES_NIGHT : FRAMES_DAY;
             const maxDrift  = isNightMode ? DRIFT_NIGHT  : DRIFT_DAY;
+
             let gotHit = false;
 
             if (hitTestSource) {
               const results = frame.getHitTestResults(hitTestSource);
               if (results.length > 0) {
-                const pose = results[0].getPose(refSpace);
+                const pose = results[0].getPose(referenceSpace);
                 reticle.visible = true;
                 reticle.matrix.fromArray(pose.transform.matrix);
 
-                const hp    = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
-                const drift = hp.distanceTo(lastHitPos);
+                const hitPos = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
+                const drift  = hitPos.distanceTo(lastHitPos);
+
                 if (drift < maxDrift) {
                   stableCount++;
                 } else {
+                  // At night: softer reset — only halve the counter instead of zeroing
                   stableCount = isNightMode ? Math.max(0, stableCount - 1) : 0;
                 }
-                lastHitPos.copy(hp);
+                lastHitPos.copy(hitPos);
                 gotHit = true;
 
                 const pct = Math.min(100, (stableCount / maxFrames) * 100);
                 setRing(pct);
-                showStatus((isNightMode ? '🌙 Night — ' : '🔍 ') + 'Detecting floor… ' + Math.round(pct) + '%');
 
-                if (stableCount >= maxFrames) placeCity('hittest');
+                const label = isNightMode ? '🌙 Night mode — detecting floor…' : '🔍 Detecting floor…';
+                showStatus(label + '  ' + Math.round(pct) + '%');
 
+                if (stableCount >= maxFrames) {
+                  placeCity('hittest');
+                }
               } else {
                 reticle.visible = false;
                 stableCount = isNightMode ? Math.max(0, stableCount - 1) : 0;
@@ -389,19 +288,24 @@
               }
             }
 
-            if (!gotHit && sessionStartTime && (performance.now() - sessionStartTime) > FALLBACK_MS) {
-              placeCity('fallback');
+            // ── Time-based fallback ───────────────────────────────────────────
+            // If no stable hit within FALLBACK_MS, use camera maths to place on floor
+            if (!gotHit && sessionStartTime !== null) {
+              const elapsed = performance.now() - sessionStartTime;
+              if (elapsed > FALLBACK_MS) {
+                placeCity('fallback');
+              }
             }
           }
         }
 
-        animateFlyingLanterns(timestamp);
+        animateLanterns(timestamp);
         animateLights(timestamp);
         animateParticles(timestamp);
         renderer.render(scene, camera);
       }
 
-      // ── Place city on floor ───────────────────────────────────────────────────
+      // ── Place city ───────────────────────────────────────────────────────────
       function placeCity(method) {
         placed = true;
         reticle.visible = false;
@@ -410,23 +314,31 @@
         const world = new THREE.Group();
 
         if (method === 'hittest') {
-          // Exact real-world floor from ARCore / ARKit
+          // ✅ Real floor from ARCore/ARKit hit-test
           world.position.setFromMatrixPosition(reticle.matrix);
+
+          // Extract only yaw — keep city perfectly upright on floor
           const m = reticle.matrix.elements;
-          // yaw only — keep city perfectly upright
           world.rotation.y = Math.atan2(m[8], m[10]);
+
         } else {
-          // Camera-math fallback: floor = eye_height - 1.6 m
+          // ✅ Fallback: estimate floor from camera position
+          // Camera in WebXR is at eye height (~1.6m). Floor = cam.y - 1.6
           const camPos = new THREE.Vector3();
           const camDir = new THREE.Vector3();
           camera.getWorldPosition(camPos);
           camera.getWorldDirection(camDir);
+
+          // Flatten direction — ignore vertical tilt
           camDir.y = 0;
           if (camDir.lengthSq() < 0.001) camDir.set(0, 0, -1);
           camDir.normalize();
+
+          const floorY = camPos.y - 1.6;  // estimated floor level
+
           world.position.set(
             camPos.x + camDir.x * 1.5,
-            camPos.y - 1.6,
+            floorY,
             camPos.z + camDir.z * 1.5
           );
           world.rotation.y = Math.atan2(camDir.x, camDir.z) + Math.PI;
@@ -435,278 +347,181 @@
         scene.add(world);
         buildCity(world);
 
-        // Placed confirmation flash
+        // Show placed confirmation tick, then fade
         elTick.style.transform = 'translate(-50%,-50%) scale(1)';
         elTick.style.opacity   = '1';
         setTimeout(() => {
-          elTick.style.opacity   = '0';
+          elTick.style.opacity = '0';
           elTick.style.transform = 'translate(-50%,-50%) scale(0.8)';
         }, 1200);
 
-        showStatus('🪷 Vesak City placed' + (method === 'fallback' ? ' (estimated floor)' : ''));
+        const methodLabel = method === 'fallback' ? ' (floor estimated)' : '';
+        showStatus('🪷 Vesak City placed' + methodLabel);
         setTimeout(hideStatus, 2800);
       }
 
-      // ═══════════════════════════════════════════════════════════════════════
-      //  CITY LAYOUT
-      // ═══════════════════════════════════════════════════════════════════════
-      //
-      //  (user)  ←  you stand here, city opens away from you
-      //
-      //  z=0   ── entrance ──────────────────────────────
-      //  z=-2  ── lotus rows + lotus lanterns on poles ──
-      //  z=-4  ─────────────────────────────────────────
-      //  z=-6  ─────────────────────────────────────────
-      //  z=-8  ── stupa (left -4, right +4) ─────────────
-      //  z=-10 ── Buddha (centre 0) ─────────────────────
-      //
-      // ═══════════════════════════════════════════════════════════════════════
-
+      // ── Build city ───────────────────────────────────────────────────────────
       function buildCity(world) {
-        placeBuddha(world);
-        placeStupas(world);
-        placeLotusRows(world);
-        placeLotusLanternPoles(world);
-        placeFlyingLanterns(world);
+        addLotusPath(world, 10, 2.7, 1.2);
+        addLotusPath(world, 10, 5.2, 1.2, 0.4);
+        addLotusClusters(world);
+        addTemple(world, 4, 0, -6);
+        addBuddha(world, -4, 0, -6);
+        addPathLanterns(world);
         addGardenLights(world);
-        addFireflies(world);
+        addFlyingLanterns(world, 14);
+        addFireflyGlow(world);
       }
 
-      // ── 1. Buddha — rear centrepiece ────────────────────────────────────────
-      function placeBuddha(world) {
-        const m = cloneModel('buddha', 2.2, 0);
-        if (m) {
-          m.position.set(0, 0, -9.5);
-          world.add(m);
-        }
-        // golden halo glow
-        const glow = new THREE.PointLight(0xffcc55, 1.4, 5.5);
-        glow.position.set(0, 1.6, -9.5);
-        world.add(glow);
-        pathLights.push({ light: glow, phase: 0.2 });
-      }
-
-      // ── 2. Stupas — flanking buddha ──────────────────────────────────────────
-      function placeStupas(world) {
-        const positions = [
-          { x: -4.0, z: -8.0, ry:  0.25 },
-          { x:  4.0, z: -8.0, ry: -0.25 },
-        ];
-        positions.forEach(({ x, z, ry }) => {
-          const m = cloneModel('stupa', 2.8, ry);
-          if (m) {
-            m.position.set(x, 0, z);
-            world.add(m);
-          }
-          // soft white glow at stupa base
-          const l = new THREE.PointLight(0xffeedd, 0.6, 4);
-          l.position.set(x, 0.8, z);
-          world.add(l);
-          pathLights.push({ light: l, phase: Math.random() * Math.PI * 2 });
-        });
-      }
-
-      // ── 3. Lotus flowers — lining both sides of the path ────────────────────
-      function placeLotusRows(world) {
-        const lotusKeys  = ['lotus1', 'lotus2'];
-        const leftX  = -2.2;
-        const rightX =  2.2;
-        const outerL = -3.4;
-        const outerR =  3.4;
-
-        for (let i = 0; i < 12; i++) {
-          const z = -i * 0.9 - 0.6;
-
-          // inner row — left & right
-          [leftX, rightX].forEach((sx, si) => {
-            const m = cloneModel(lotusKeys[(i + si) % 2], 0.30 + Math.random() * 0.12);
-            if (!m) return;
-            m.position.set(sx + (Math.random() - 0.5) * 0.25, 0, z + (Math.random() - 0.5) * 0.15);
-            m.rotation.y = Math.random() * Math.PI * 2;
-            world.add(m);
-          });
-
-          // outer scattered row
-          if (i % 2 === 0) {
-            [outerL, outerR].forEach((sx, si) => {
-              const m = cloneModel(lotusKeys[si % 2], 0.22 + Math.random() * 0.10);
-              if (!m) return;
-              m.position.set(sx + (Math.random() - 0.5) * 0.4, 0, z + (Math.random() - 0.5) * 0.3);
-              m.rotation.y = Math.random() * Math.PI * 2;
-              world.add(m);
-            });
-          }
-        }
-
-        // Lotus clusters around stupa bases
-        [[-4, -7.5], [4, -7.5], [-4, -8.5], [4, -8.5],
-         [-4, -9.2], [4, -9.2], [-1.2, -9.8], [1.2, -9.8]].forEach(([x, z]) => {
-          const m = cloneModel(lotusKeys[Math.round(Math.random())], 0.20 + Math.random() * 0.10);
-          if (!m) return;
-          m.position.set(x + (Math.random() - 0.5) * 0.5, 0, z + (Math.random() - 0.5) * 0.3);
-          m.rotation.y = Math.random() * Math.PI * 2;
-          world.add(m);
-        });
-      }
-
-      // ── 4. Lotus lanterns on poles — lining the path ─────────────────────────
-      function placeLotusLanternPoles(world) {
-        const poleZs = [-0.8, -1.8, -2.8, -3.8, -4.8, -5.8];
-        const sideXs = [-2.0, 2.0];
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x5a3820, roughness: 0.85 });
-
-        poleZs.forEach((z, zi) => {
-          sideXs.forEach((sx, si) => {
-            // Wooden pole
-            const pole = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.025, 0.032, 1.9, 8),
-              poleMat
-            );
-            pole.position.set(sx, 0.95, z);
-            world.add(pole);
-
-            // Lotus lantern model on pole top
-            const lan = cloneModel('lotusLantern', 0.42);
-            if (lan) {
-              lan.position.set(sx, 1.95, z);
-              lan.rotation.y = (zi * si + si) * 0.6 + Math.random() * 0.4;
-              world.add(lan);
-            }
-
-            // Warm orange glow from lantern
-            const light = new THREE.PointLight(0xff7733, 0.75, 3.8);
-            light.position.set(sx, 2.05, z);
-            world.add(light);
-            pathLights.push({ light, phase: (zi + si * 3) * 0.55 });
-          });
-        });
-      }
-
-      // ── 5. Flying Vesak lanterns ─────────────────────────────────────────────
-      function placeFlyingLanterns(world) {
-        for (let i = 0; i < 16; i++) {
-          const startX = (Math.random() - 0.5) * 7;
-          const startY = 0.6 + Math.random() * 0.6;
-          const startZ = -1 - Math.random() * 9;
-
-          const lantern = cloneModel('vesakLantern', 0.55) || buildFallbackLantern();
-          lantern.position.set(startX, startY, startZ);
-
-          lantern.userData = {
-            speed : 0.009 + Math.random() * 0.015,
-            driftX: (Math.random() - 0.5) * 0.0013,
-            driftZ: -0.001  - Math.random() * 0.0009,
-            phase : (i / 16) * Math.PI * 2,
-            baseY : startY,
-          };
-
-          flyingLanterns.push(lantern);
-          world.add(lantern);
-
-          // Each flying lantern casts its own warm light
-          const gl = new THREE.PointLight(0xffaa44, 0.55, 2.8);
-          gl.position.set(startX, startY, startZ);
-          world.add(gl);
-          lantern.userData.glowLight = gl;
+      // ── Scene objects ─────────────────────────────────────────────────────────
+      function addLotusPath(parent, count, xOff, spacing) {
+        for (let i = 0; i < count; i++) {
+          const f = createLotusFlower(0.5 + Math.random() * 0.4);
+          f.position.set(xOff, 0.02, -i * spacing - 1.2 + (Math.random() - 0.5) * 0.2);
+          f.rotation.y = Math.random() * Math.PI * 2;
+          parent.add(f);
         }
       }
 
-      function buildFallbackLantern() {
+      function createLotusFlower(size = 1) {
         const g = new THREE.Group();
-        g.add(new THREE.Mesh(
-          new THREE.SphereGeometry(0.16, 10, 8),
-          new THREE.MeshStandardMaterial({ color: 0xffeb99, emissive: 0xffd36b, emissiveIntensity: 1.3, transparent: true, opacity: 0.88 })
-        ));
-        const flame = new THREE.Mesh(
-          new THREE.ConeGeometry(0.04, 0.14, 8),
-          new THREE.MeshStandardMaterial({ color: 0xffa533, emissive: 0xff6600, emissiveIntensity: 3 })
-        );
-        flame.position.y = -0.22; flame.rotation.x = Math.PI; g.add(flame);
+        const m = new THREE.MeshStandardMaterial({ color: 0xff7fbf, roughness: 0.6, metalness: 0.1 });
+        for (let i = 0; i < 8; i++) {
+          const p = new THREE.Mesh(new THREE.ConeGeometry(0.15*size, 0.5*size, 6), m);
+          p.position.y = 0.12*size; p.rotation.x = Math.PI/2;
+          p.rotation.z = (i/8)*Math.PI*2; p.scale.set(1,1,0.4); g.add(p);
+        }
+        const c = new THREE.Mesh(new THREE.SphereGeometry(0.12*size,8,8), new THREE.MeshStandardMaterial({color:0xffe070}));
+        c.position.y = 0.08*size; g.add(c);
         return g;
       }
 
-      // ── 6. Garden ambient orbs ────────────────────────────────────────────────
-      function addGardenLights(world) {
-        const pts = [
-          [-3.0, 0.25, -2.0], [ 3.0, 0.25, -2.0],
-          [-3.0, 0.25, -4.5], [ 3.0, 0.25, -4.5],
-          [-3.0, 0.25, -7.0], [ 3.0, 0.25, -7.0],
-          [ 0.0, 0.25, -5.5],
-        ];
-        pts.forEach(([x, y, z]) => {
-          const orb = new THREE.Mesh(
-            new THREE.SphereGeometry(0.07, 8, 8),
-            new THREE.MeshStandardMaterial({ color: 0xffd580, emissive: 0xffd150, emissiveIntensity: 1.2, transparent: true, opacity: 0.9 })
-          );
-          orb.position.set(x, y, z);
-          world.add(orb);
-          const l = new THREE.PointLight(0xffd580, 0.5, 3.0);
-          l.position.set(x, y, z);
-          world.add(l);
-          pathLights.push({ light: l, phase: Math.random() * Math.PI * 2 });
+      function addTemple(parent, x, y, z) {
+        const g = new THREE.Group(); g.position.set(x, y, z);
+        const add = m => g.add(m);
+        const b = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.4,2.8), new THREE.MeshStandardMaterial({color:0x7b4a20,roughness:0.8})); b.position.y=0.2; add(b);
+        const bd = new THREE.Mesh(new THREE.BoxGeometry(1.8,1.1,2.2), new THREE.MeshStandardMaterial({color:0xe0c39a})); bd.position.y=0.85; add(bd);
+        [[1.7,1.4,0.7,0x8b0000],[2.15,1.1,0.5,0xaa0000]].forEach(([py,r,h,c])=>{
+          const rf = new THREE.Mesh(new THREE.ConeGeometry(r,h,4), new THREE.MeshStandardMaterial({color:c}));
+          rf.position.y=py; rf.rotation.y=Math.PI/4; add(rf);
         });
-      }
-
-      // ── 7. Fireflies ──────────────────────────────────────────────────────────
-      function addFireflies(world) {
-        const grp = new THREE.Group();
-        for (let i = 0; i < 32; i++) {
-          const f = new THREE.Mesh(
-            new THREE.SphereGeometry(0.03, 6, 6),
-            new THREE.MeshStandardMaterial({ color: 0xffe7aa, emissive: 0xffd680, emissiveIntensity: 1.5, transparent: true, opacity: 0.88 })
-          );
-          f.position.set(
-            (Math.random() - 0.5) * 8,
-            0.2 + Math.random() * 2.2,
-            -0.5 - Math.random() * 10
-          );
-          grp.add(f);
+        const pm = new THREE.MeshStandardMaterial({color:0xf0e0c0});
+        for(const px of[-0.7,0.7]) for(const pz of[-0.8,0.8]){
+          const pl=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,1.2,8),pm); pl.position.set(px,0.9,pz); add(pl);
         }
-        world.add(grp);
-        particleGroups.push(grp);
+        parent.add(g);
       }
 
-      // ── Animate flying lanterns ───────────────────────────────────────────────
-      function animateFlyingLanterns(t) {
-        flyingLanterns.forEach(l => {
-          l.position.y += l.userData.speed;
-          l.position.x += l.userData.driftX + Math.sin(t * 0.001 + l.userData.phase) * 0.0006;
-          l.position.z += l.userData.driftZ;
-          l.rotation.y  += 0.003;
-          l.rotation.z   = Math.sin(t * 0.0009 + l.userData.phase) * 0.035;
+      function addBuddha(parent, x, y, z) {
+        const g = new THREE.Group(); g.position.set(x, y, z);
+        const ped=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.9,0.28,16),new THREE.MeshStandardMaterial({color:0x6d4b3b})); ped.position.y=0.14; g.add(ped);
+        const bd=new THREE.Mesh(new THREE.SphereGeometry(0.5,16,12),new THREE.MeshStandardMaterial({color:0xf3e5ab})); bd.position.y=0.8; g.add(bd);
+        const hd=new THREE.Mesh(new THREE.SphereGeometry(0.28,12,10),new THREE.MeshStandardMaterial({color:0xf5e7c0})); hd.position.y=1.45; g.add(hd);
+        const hl=new THREE.Mesh(new THREE.RingGeometry(0.32,0.42,32),new THREE.MeshBasicMaterial({color:0xffdd66,side:THREE.DoubleSide})); hl.position.y=1.9; hl.rotation.x=-0.2; g.add(hl);
+        parent.add(g);
+      }
 
-          if (l.userData.glowLight) {
-            l.userData.glowLight.position.copy(l.position);
-            l.userData.glowLight.intensity = 0.45 + 0.18 * Math.sin(t * 0.004 + l.userData.phase);
-          }
+      function addPathLanterns(parent) {
+        const sides=[-2,2,-1.4,1.4,-2.6,2.6,-1,1]; let z=-2;
+        for(let i=0;i<10;i++){
+          const sx=sides[i%sides.length];
+          const lan=createLantern(); lan.position.set(sx,0.5,z); parent.add(lan);
+          const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,2.2,8),new THREE.MeshStandardMaterial({color:0x613f27,roughness:0.85}));
+          pole.position.set(sx,1.1,z); parent.add(pole);
+          const pl=lan.children.find(o=>o.isLight);
+          if(pl) pathLights.push({light:pl,phase:Math.random()*Math.PI*2});
+          z-=1.7;
+        }
+      }
 
-          if (l.position.y > 13) {
-            l.position.y = l.userData.baseY || 0.7;
-            l.position.x = (Math.random() - 0.5) * 7;
-            l.position.z = -1 - Math.random() * 9;
+      function createLantern() {
+        const g=new THREE.Group();
+        g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.38,12),new THREE.MeshStandardMaterial({color:0xff6633,emissive:0xff9933,emissiveIntensity:0.8,transparent:true,opacity:0.92})));
+        const top=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.16,12),new THREE.MeshStandardMaterial({color:0xcc3300})); top.position.y=0.27; g.add(top);
+        const bot=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.14,12),new THREE.MeshStandardMaterial({color:0xcc3300})); bot.position.y=-0.27; bot.rotation.x=Math.PI; g.add(bot);
+        g.add(new THREE.PointLight(0xffb060,0.8,3));
+        return g;
+      }
+
+      function addFlyingLanterns(parent, count) {
+        for(let i=0;i<count;i++){
+          const l=createSkyLantern();
+          l.position.set((Math.random()-0.5)*5, 0.6+Math.random()*0.4, -2-Math.random()*6);
+          l.userData={speed:0.014+Math.random()*0.02, driftX:(Math.random()-0.5)*0.0016, driftZ:-0.0015-Math.random()*0.0011, phase:Math.random()*Math.PI*2};
+          flyingLanterns.push(l); parent.add(l);
+        }
+      }
+
+      function createSkyLantern() {
+        const g=new THREE.Group();
+        const balloon=new THREE.Mesh(new THREE.SphereGeometry(0.18,12,10),new THREE.MeshStandardMaterial({color:0xffeb99,emissive:0xffd36b,emissiveIntensity:1.2,transparent:true,opacity:0.86}));
+        balloon.scale.set(1,1.3,1); g.add(balloon);
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.02,8,24),new THREE.MeshStandardMaterial({color:0x7a4a2c})); ring.rotation.x=Math.PI/2; ring.position.y=-0.24; g.add(ring);
+        const flame=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.16,8),new THREE.MeshStandardMaterial({color:0xffa533,emissive:0xff7700,emissiveIntensity:3})); flame.position.y=-0.17; flame.rotation.x=Math.PI; g.add(flame);
+        g.add(new THREE.PointLight(0xffb060,1.1,4));
+        const str=new THREE.Mesh(new THREE.CylinderGeometry(0.005,0.005,0.4,6),new THREE.MeshStandardMaterial({color:0x5a3c2a})); str.position.y=-0.2; g.add(str);
+        return g;
+      }
+
+      function addLotusClusters(parent) {
+        [[-1,0,-9],[1,0,-8],[-3,0,-13],[3,0,-12],[-1.8,0,-3],[1.8,0,-2],[-4.2,0,-6],[4.2,0,-6]]
+        .forEach(([x,y,z])=>{
+          const cl=new THREE.Group(); const n=3+Math.floor(Math.random()*3);
+          for(let i=0;i<n;i++){
+            const a=(i/n)*Math.PI*2;
+            const f=createLotusFlower(0.4+Math.random()*0.3);
+            f.position.set(Math.cos(a)*0.5, 0.02, Math.sin(a)*0.5);
+            f.rotation.y=Math.random()*Math.PI*2; cl.add(f);
           }
+          cl.position.set(x,y,z); parent.add(cl);
         });
       }
 
-      // ── Animate flickering lights ─────────────────────────────────────────────
+      function addGardenLights(parent) {
+        [[-1.8,0.4,-1.2],[1.8,0.4,-1.2],[-3.2,0.4,-5],[3.2,0.4,-5]].forEach(([x,y,z])=>{
+          const orb=new THREE.Mesh(new THREE.SphereGeometry(0.12,10,10),new THREE.MeshStandardMaterial({color:0xffd580,emissive:0xffd150,emissiveIntensity:0.9,transparent:true,opacity:0.9}));
+          orb.position.set(x,y,z); parent.add(orb);
+          const l=new THREE.PointLight(0xffd580,0.7,3); l.position.set(x,y,z); parent.add(l);
+          pathLights.push({light:l,phase:Math.random()*Math.PI*2});
+        });
+      }
+
+      function addFireflyGlow(parent) {
+        const g=new THREE.Group();
+        for(let i=0;i<24;i++){
+          const f=new THREE.Mesh(new THREE.SphereGeometry(0.04,8,8),new THREE.MeshStandardMaterial({color:0xffe7aa,emissive:0xffd680,emissiveIntensity:1.2,transparent:true,opacity:0.9}));
+          f.position.set((Math.random()-0.5)*6, 0.2+Math.random()*1.6, -1-Math.random()*8);
+          g.add(f);
+        }
+        parent.add(g); particleGroups.push(g);
+      }
+
+      // ── Animations ────────────────────────────────────────────────────────────
+      function animateLanterns(t) {
+        flyingLanterns.forEach(l=>{
+          l.position.y+=l.userData.speed;
+          l.position.x+=l.userData.driftX+Math.sin(t*0.001+l.userData.phase)*0.0007;
+          l.position.z+=l.userData.driftZ;
+          l.rotation.y+=0.004;
+          l.rotation.z=Math.sin(t*0.001+l.userData.phase)*0.05;
+          if(l.position.y>10){ l.position.y=0.7; l.position.x=(Math.random()-0.5)*5; l.position.z=-2-Math.random()*10; }
+        });
+      }
       function animateLights(t) {
-        pathLights.forEach(({ light, phase }) => {
-          light.intensity = 0.5 + 0.22 * Math.sin(t * 0.005 + phase);
-          if (light.color) light.color.setHSL(0.08, 0.85, 0.50 + 0.10 * Math.sin(t * 0.009 + phase));
+        pathLights.forEach(({light,phase})=>{
+          light.intensity=0.6+0.25*Math.sin(t*0.006+phase);
+          light.color.setHSL(0.09,0.9,0.55+0.12*Math.sin(t*0.01+phase));
         });
       }
-
-      // ── Animate fireflies ─────────────────────────────────────────────────────
       function animateParticles(t) {
-        particleGroups.forEach((grp, idx) => {
-          grp.children.forEach((p, i) => {
-            p.position.y += 0.0017 + 0.0015 * idx;
-            p.position.x += Math.sin(t * 0.0007 + i * 0.7) * 0.0006;
-            if (p.position.y > 2.8 + idx * 0.4) p.position.y = 0.18;
+        particleGroups.forEach((g,idx)=>{
+          g.children.forEach((p,i)=>{
+            p.position.y+=0.002+0.002*idx;
+            p.position.x+=Math.sin(t*0.0007+i)*0.0007;
+            if(p.position.y>2.8+idx*0.5) p.position.y=0.2;
           });
         });
       }
-
     </script>
   </body>
 </html>
