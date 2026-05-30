@@ -22,6 +22,24 @@
       #progFill  { height:100%; background:linear-gradient(90deg,#ffd580,#ff9933); border-radius:8px; width:0%; transition:width 0.3s; }
       #errMsg    { color:#ff9966; font-size:12px; margin-top:8px; display:none; line-height:1.5; }
 
+      #diagBox {
+        position:fixed; top:0; left:0; right:0;
+        background:rgba(180,30,30,0.92); color:#fff;
+        font-size:12px; padding:10px 14px; z-index:30;
+        display:none; line-height:1.7; max-height:40vh; overflow-y:auto;
+        border-bottom:2px solid #ff6666;
+      }
+      #diagBox strong { color:#ffd580; display:block; margin-bottom:4px; font-size:13px; }
+      #diagBox .diag-row { font-family:monospace; font-size:11px; color:#ffcccc; }
+      #diagBox .diag-ok  { color:#aaffaa; }
+      #diagBox .diag-err { color:#ff9966; }
+      #retryBtn {
+        display:none; margin-top:10px;
+        background:#ffd580; color:#000; border:none;
+        padding:6px 18px; border-radius:16px; font-size:13px;
+        font-weight:bold; cursor:pointer;
+      }
+
       #statusBar {
         position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
         background:rgba(0,0,0,0.65); backdrop-filter:blur(8px);
@@ -77,6 +95,15 @@
         <text   id="ringPct"  x="50"  y="50">0%</text>
       </svg>
     </div>
+    <div id="diagBox" style="position:fixed;top:0;left:0;right:0;background:rgba(140,20,20,0.93);color:#fff;font-size:12px;padding:10px 14px;z-index:30;display:none;line-height:1.8;max-height:45vh;overflow-y:auto;border-bottom:2px solid #ff6666;">
+      <strong style="color:#ffd580;display:block;margin-bottom:6px;font-size:13px;">⚠️ Model load failed — see details below</strong>
+      <div id="diagRows" style="font-family:monospace;font-size:11px;"></div>
+      <div style="margin-top:8px;font-size:11px;color:#ffddaa;">
+        Fix: Open R2 dashboard → Bucket Settings → CORS → add rule:<br>
+        <span style="font-family:monospace">Allowed Origins: *  Methods: GET,HEAD</span>
+      </div>
+      <button id="retryBtn" onclick="retryFailed()" style="display:none;margin-top:8px;background:#ffd580;color:#000;border:none;padding:5px 16px;border-radius:14px;font-size:12px;font-weight:bold;cursor:pointer;">🔄 Retry</button>
+    </div>
     <div id="statusBar"></div>
     <div id="nightBadge">🌙 Night mode</div>
     <div id="placedTick">✓</div>
@@ -128,49 +155,113 @@
 
       const cache = {};
 
+      /* Track which models failed so we can show diagnostics and retry */
+      const failedModels = {};
+
+      async function loadOneModel({ key, url, label }) {
+        return new Promise(resolve => {
+          gltfLoader.load(
+            url,
+            result => {
+              cache[key] = result.scene;
+              cache[key].traverse(n => {
+                if (n.isMesh) {
+                  n.castShadow    = true;
+                  n.receiveShadow = true;
+                  if (n.material) n.material.needsUpdate = false;
+                }
+              });
+              delete failedModels[key];
+              resolve({ key, ok: true });
+            },
+            undefined,
+            (err) => {
+              console.warn(`Failed to load ${key}:`, err);
+              cache[key] = null;
+              failedModels[key] = { url, label, err: err?.message || String(err) };
+              resolve({ key, ok: false });
+            }
+          );
+        });
+      }
+
+      /*
+        Pre-check: HEAD request tells us WHY a model failed before we even
+        try GLTF loading.  Results shown in the diagnostic overlay.
+      */
+      async function checkUrl(url) {
+        try {
+          const r = await fetch(url, { method: 'HEAD', mode: 'cors' });
+          return r.ok ? 'ok' : `HTTP ${r.status} ${r.statusText}`;
+        } catch(e) {
+          return e.message.includes('CORS') || e.message.includes('NetworkError')
+            ? 'CORS blocked — bucket needs Access-Control-Allow-Origin: *'
+            : `Network error: ${e.message}`;
+        }
+      }
+
+      function showDiag(results) {
+        const box  = document.getElementById('diagBox');
+        const rows = document.getElementById('diagRows');
+        const btn  = document.getElementById('retryBtn');
+        if (!results.some(r => r.status !== 'ok')) return;
+        rows.innerHTML = results.map(r =>
+          `<div class="diag-row ${r.status==='ok'?'diag-ok':'diag-err'}">
+            ${r.status==='ok'?'✓':'✗'} ${r.label}: ${r.status}
+          </div>`
+        ).join('');
+        box.style.display = 'block';
+        btn.style.display = 'inline-block';
+      }
+
+      /* Exposed globally so the retry button can call it */
+      window.retryFailed = async function() {
+        const toRetry = MODELS.filter(m => failedModels[m.key]);
+        if (!toRetry.length) return;
+        document.getElementById('retryBtn').textContent = '⏳ Retrying…';
+        await Promise.all(toRetry.map(m => loadOneModel(m)));
+        document.getElementById('retryBtn').textContent = '🔄 Retry failed models';
+        // Re-check diagnostics
+        const results = await Promise.all(MODELS.map(async m => ({
+          label: m.label,
+          status: cache[m.key] ? 'ok' : (await checkUrl(m.url))
+        })));
+        showDiag(results);
+      };
+
       async function preload() {
         let done = 0;
         const total = MODELS.length;
         draco.preload();
 
-        const jobs = MODELS.map(({ key, url, label }) =>
-          new Promise(resolve => {
-            gltfLoader.load(
-              url,
-              result => {
-                cache[key] = result.scene;
-                cache[key].traverse(n => {
-                  if (n.isMesh) {
-                    n.castShadow    = true;
-                    n.receiveShadow = true;
-                    if (n.material) n.material.needsUpdate = false;
-                  }
-                });
-                done++;
-                elProgLabel.textContent = `Loaded: ${label} (${done}/${total})`;
-                elProgFill.style.width  = `${(done/total)*100}%`;
-                resolve();
-              },
-              undefined,
-              () => {
-                console.warn(`Failed to load: ${key}`);
-                cache[key] = null;
-                done++;
-                elProgFill.style.width  = `${(done/total)*100}%`;
-                elErrMsg.style.display  = 'block';
-                elErrMsg.textContent    = `⚠️ "${label}" failed — using placeholder.`;
-                resolve();
-              }
-            );
+        const jobs = MODELS.map(m =>
+          loadOneModel(m).then(result => {
+            done++;
+            elProgLabel.textContent = `(${done}/${total}) ${result.ok ? 'Loaded' : '⚠️ Failed'}: ${m.label}`;
+            elProgFill.style.width  = `${(done/total)*100}%`;
           })
         );
 
         await Promise.all(jobs);
 
         elProgFill.style.width  = '100%';
-        elProgLabel.textContent = '✅ Ready!';
-        elLoadSub.textContent   = 'Tap "Start AR" then point at the floor.';
-        setTimeout(() => elLoading.style.display = 'none', 700);
+
+        /* Run HEAD checks on any that failed to show user the real reason */
+        const failed = MODELS.filter(m => !cache[m.key]);
+        if (failed.length) {
+          elProgLabel.textContent = `⚠️ ${failed.length} model(s) failed — checking…`;
+          const diagResults = await Promise.all(MODELS.map(async m => ({
+            label: m.label,
+            status: cache[m.key] ? 'ok' : (await checkUrl(m.url))
+          })));
+          showDiag(diagResults);
+          elProgLabel.textContent = `⚠️ ${failed.length} model(s) unavailable`;
+        } else {
+          elProgLabel.textContent = '✅ All models loaded!';
+        }
+
+        elLoadSub.textContent = 'Tap "Start AR" then point at the floor.';
+        setTimeout(() => elLoading.style.display = 'none', failed.length ? 2500 : 700);
       }
 
       /* Fallback geometries — sizes match new realistic scales */
@@ -209,7 +300,9 @@
         of whatever internal units the GLB was authored in.
       */
       function getModel(key, targetHeight) {
-        const root = cache[key] ? cache[key].clone(true) : getFallback(key);
+        /* Return null if model failed — caller should check before using */
+        if (!cache[key]) return null;
+        const root = cache[key].clone(true);
         _box3.setFromObject(root);
         _box3.getSize(_size3);
         _box3.getCenter(_cent3);
@@ -466,6 +559,10 @@
         PEDESTAL: simple stone block grounds the statue on the floor plane.
       */
       function buddhaStatue(p) {
+        if (!cache['buddha']) {
+          showStatus('⚠️ Buddha model unavailable — check R2 bucket CORS/public settings');
+          return;
+        }
         const m = getModel('buddha', 3.6);
         m.position.set(-3.5, 0, -7.0);
         m.rotation.y = 0.22;
@@ -502,6 +599,10 @@
         POSITION: x=+8.0, z=-8.0 — well separated from buddha on the left.
       */
       function stupaRight(p) {
+        if (!cache['stupa']) {
+          showStatus('⚠️ Stupa model unavailable — check R2 bucket');
+          return;
+        }
         const m = getModel('stupa', 6.5);
         m.position.set(8.0, 0, -8.0);
         m.rotation.y = -0.18;
@@ -529,6 +630,7 @@
 
         spots.forEach(([x, hangY, z, h]) => {
           const m = getModel('vesakLantern', h);
+          if (!m) return;
           m.position.set(x, hangY, z);
           m.rotation.y = (Math.random()-0.5)*0.6;
           p.add(m);
@@ -566,6 +668,7 @@
           const key = i%2===0 ? 'lotus1' : 'lotus2';
           const h   = 0.20 + Math.random()*0.10;
           const m   = getModel(key, h);
+          if (!m) continue;
           const sx  = i%2===0 ? -0.70 : 0.70;
           m.position.set(sx+(Math.random()-0.5)*0.14, 0, -1.5 - i*1.15 + (Math.random()-0.5)*0.20);
           m.rotation.y = Math.random()*Math.PI*2;
@@ -582,6 +685,7 @@
           for (let j = 0; j < n; j++) {
             const a = (j/n)*Math.PI*2;
             const m = getModel(idx%2===0 ? 'lotus1' : 'lotus2', 0.14+Math.random()*0.08);
+            if (!m) continue;
             m.position.set(x+Math.cos(a)*0.40, 0, z+Math.sin(a)*0.40);
             m.rotation.y = Math.random()*Math.PI*2;
             p.add(m);
@@ -601,6 +705,7 @@
           [0,    0, -16.0],
         ].forEach(([x, y, z]) => {
           const m = getModel('lotusLantern', 0.50);
+          if (!m) return;
           m.position.set(x, y, z);
           m.rotation.y = Math.random()*Math.PI*2;
           p.add(m);
