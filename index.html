@@ -22,24 +22,6 @@
       #progFill  { height:100%; background:linear-gradient(90deg,#ffd580,#ff9933); border-radius:8px; width:0%; transition:width 0.3s; }
       #errMsg    { color:#ff9966; font-size:12px; margin-top:8px; display:none; line-height:1.5; }
 
-      #diagBox {
-        position:fixed; top:0; left:0; right:0;
-        background:rgba(180,30,30,0.92); color:#fff;
-        font-size:12px; padding:10px 14px; z-index:30;
-        display:none; line-height:1.7; max-height:40vh; overflow-y:auto;
-        border-bottom:2px solid #ff6666;
-      }
-      #diagBox strong { color:#ffd580; display:block; margin-bottom:4px; font-size:13px; }
-      #diagBox .diag-row { font-family:monospace; font-size:11px; color:#ffcccc; }
-      #diagBox .diag-ok  { color:#aaffaa; }
-      #diagBox .diag-err { color:#ff9966; }
-      #retryBtn {
-        display:none; margin-top:10px;
-        background:#ffd580; color:#000; border:none;
-        padding:6px 18px; border-radius:16px; font-size:13px;
-        font-weight:bold; cursor:pointer;
-      }
-
       #statusBar {
         position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
         background:rgba(0,0,0,0.65); backdrop-filter:blur(8px);
@@ -95,15 +77,6 @@
         <text   id="ringPct"  x="50"  y="50">0%</text>
       </svg>
     </div>
-    <div id="diagBox" style="position:fixed;top:0;left:0;right:0;background:rgba(140,20,20,0.93);color:#fff;font-size:12px;padding:10px 14px;z-index:30;display:none;line-height:1.8;max-height:45vh;overflow-y:auto;border-bottom:2px solid #ff6666;">
-      <strong style="color:#ffd580;display:block;margin-bottom:6px;font-size:13px;">⚠️ Model load failed — see details below</strong>
-      <div id="diagRows" style="font-family:monospace;font-size:11px;"></div>
-      <div style="margin-top:8px;font-size:11px;color:#ffddaa;">
-        Fix: Open R2 dashboard → Bucket Settings → CORS → add rule:<br>
-        <span style="font-family:monospace">Allowed Origins: *  Methods: GET,HEAD</span>
-      </div>
-      <button id="retryBtn" onclick="retryFailed()" style="display:none;margin-top:8px;background:#ffd580;color:#000;border:none;padding:5px 16px;border-radius:14px;font-size:12px;font-weight:bold;cursor:pointer;">🔄 Retry</button>
-    </div>
     <div id="statusBar"></div>
     <div id="nightBadge">🌙 Night mode</div>
     <div id="placedTick">✓</div>
@@ -123,7 +96,7 @@
       import { GLTFLoader }  from 'three/addons/loaders/GLTFLoader.js';
       import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-      /* DOM */
+      /* ── DOM ── */
       const elLoading   = document.getElementById('loading');
       const elLoadSub   = document.getElementById('loadSub');
       const elProgLabel = document.getElementById('progLabel');
@@ -136,7 +109,7 @@
       const elNight     = document.getElementById('nightBadge');
       const elTick      = document.getElementById('placedTick');
 
-      /* R2 model URLs */
+      /* ── R2 model URLs ── */
       const R2 = 'https://pub-7cbad791f95e4c9680981f095fab45e1.r2.dev/';
       const MODELS = [
         { key:'buddha',       url: R2+'stone_buddha_statue.glb', label:'Buddha Statue'   },
@@ -147,7 +120,7 @@
         { key:'stupa',        url: R2+'sthupa_srilanka.glb',     label:'Sri Lanka Stupa' },
       ];
 
-      /* GLTF / DRACO loader */
+      /* ── GLTF / DRACO loader ── */
       const draco = new DRACOLoader();
       draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.5/');
       const gltfLoader = new GLTFLoader();
@@ -155,154 +128,256 @@
 
       const cache = {};
 
-      /* Track which models failed so we can show diagnostics and retry */
-      const failedModels = {};
-
-      async function loadOneModel({ key, url, label }) {
-        return new Promise(resolve => {
-          gltfLoader.load(
-            url,
-            result => {
-              cache[key] = result.scene;
-              cache[key].traverse(n => {
-                if (n.isMesh) {
-                  n.castShadow    = true;
-                  n.receiveShadow = true;
-                  if (n.material) n.material.needsUpdate = false;
-                }
-              });
-              delete failedModels[key];
-              resolve({ key, ok: true });
-            },
-            undefined,
-            (err) => {
-              console.warn(`Failed to load ${key}:`, err);
-              cache[key] = null;
-              failedModels[key] = { url, label, err: err?.message || String(err) };
-              resolve({ key, ok: false });
-            }
-          );
-        });
-      }
-
-      /*
-        Pre-check: HEAD request tells us WHY a model failed before we even
-        try GLTF loading.  Results shown in the diagnostic overlay.
-      */
-      async function checkUrl(url) {
-        try {
-          const r = await fetch(url, { method: 'HEAD', mode: 'cors' });
-          return r.ok ? 'ok' : `HTTP ${r.status} ${r.statusText}`;
-        } catch(e) {
-          return e.message.includes('CORS') || e.message.includes('NetworkError')
-            ? 'CORS blocked — bucket needs Access-Control-Allow-Origin: *'
-            : `Network error: ${e.message}`;
-        }
-      }
-
-      function showDiag(results) {
-        const box  = document.getElementById('diagBox');
-        const rows = document.getElementById('diagRows');
-        const btn  = document.getElementById('retryBtn');
-        if (!results.some(r => r.status !== 'ok')) return;
-        rows.innerHTML = results.map(r =>
-          `<div class="diag-row ${r.status==='ok'?'diag-ok':'diag-err'}">
-            ${r.status==='ok'?'✓':'✗'} ${r.label}: ${r.status}
-          </div>`
-        ).join('');
-        box.style.display = 'block';
-        btn.style.display = 'inline-block';
-      }
-
-      /* Exposed globally so the retry button can call it */
-      window.retryFailed = async function() {
-        const toRetry = MODELS.filter(m => failedModels[m.key]);
-        if (!toRetry.length) return;
-        document.getElementById('retryBtn').textContent = '⏳ Retrying…';
-        await Promise.all(toRetry.map(m => loadOneModel(m)));
-        document.getElementById('retryBtn').textContent = '🔄 Retry failed models';
-        // Re-check diagnostics
-        const results = await Promise.all(MODELS.map(async m => ({
-          label: m.label,
-          status: cache[m.key] ? 'ok' : (await checkUrl(m.url))
-        })));
-        showDiag(results);
-      };
-
+      /* ── Parallel model loading ── */
       async function preload() {
         let done = 0;
         const total = MODELS.length;
         draco.preload();
 
-        const jobs = MODELS.map(m =>
-          loadOneModel(m).then(result => {
-            done++;
-            elProgLabel.textContent = `(${done}/${total}) ${result.ok ? 'Loaded' : '⚠️ Failed'}: ${m.label}`;
-            elProgFill.style.width  = `${(done/total)*100}%`;
+        const jobs = MODELS.map(({ key, url, label }) =>
+          new Promise(resolve => {
+            gltfLoader.load(
+              url,
+              result => {
+                cache[key] = result.scene;
+                cache[key].traverse(n => {
+                  if (n.isMesh) {
+                    n.castShadow    = true;
+                    n.receiveShadow = true;
+                    // ENHANCED: make loaded models look more realistic
+                    if (n.material) {
+                      n.material.needsUpdate = true;
+                      // Boost PBR realism on loaded models
+                      if (n.material.roughness !== undefined) {
+                        n.material.roughness = Math.min(n.material.roughness + 0.05, 1.0);
+                      }
+                      if (n.material.envMapIntensity !== undefined) {
+                        n.material.envMapIntensity = 1.2;
+                      }
+                    }
+                  }
+                });
+                done++;
+                elProgLabel.textContent = `Loaded: ${label} (${done}/${total})`;
+                elProgFill.style.width  = `${(done/total)*100}%`;
+                resolve();
+              },
+              undefined,
+              () => {
+                console.warn(`Failed to load: ${key}`);
+                cache[key] = null;
+                done++;
+                elProgFill.style.width  = `${(done/total)*100}%`;
+                elErrMsg.style.display  = 'block';
+                elErrMsg.textContent    = `⚠️ "${label}" failed — using placeholder.`;
+                resolve();
+              }
+            );
           })
         );
 
         await Promise.all(jobs);
 
         elProgFill.style.width  = '100%';
-
-        /* Run HEAD checks on any that failed to show user the real reason */
-        const failed = MODELS.filter(m => !cache[m.key]);
-        if (failed.length) {
-          elProgLabel.textContent = `⚠️ ${failed.length} model(s) failed — checking…`;
-          const diagResults = await Promise.all(MODELS.map(async m => ({
-            label: m.label,
-            status: cache[m.key] ? 'ok' : (await checkUrl(m.url))
-          })));
-          showDiag(diagResults);
-          elProgLabel.textContent = `⚠️ ${failed.length} model(s) unavailable`;
-        } else {
-          elProgLabel.textContent = '✅ All models loaded!';
-        }
-
-        elLoadSub.textContent = 'Tap "Start AR" then point at the floor.';
-        setTimeout(() => elLoading.style.display = 'none', failed.length ? 2500 : 700);
+        elProgLabel.textContent = '✅ Ready!';
+        elLoadSub.textContent   = 'Tap "Start AR" then point at the floor.';
+        setTimeout(() => elLoading.style.display = 'none', 700);
       }
 
-      /* Fallback geometries — sizes match new realistic scales */
+      /* ── Fallback geometries — ENHANCED REALISM ── */
       const _fbGeo = {};
       const _fbMat = {};
+
+      function buildDetailedBuddhaFallback() {
+        const g = new THREE.Group();
+        // Lotus throne base — tiered platform
+        const tierMat = new THREE.MeshStandardMaterial({color:0xd4aa50, roughness:0.45, metalness:0.35});
+        [
+          {r:0.72, h:0.18, y:0.00},
+          {r:0.60, h:0.22, y:0.18},
+          {r:0.50, h:0.18, y:0.40},
+        ].forEach(({r,h,y}) => {
+          const t = new THREE.Mesh(new THREE.CylinderGeometry(r,r+0.06,h,24), tierMat);
+          t.position.y = y + h/2; g.add(t);
+        });
+        // Lotus petals ring
+        const petalMat = new THREE.MeshStandardMaterial({color:0xff8cb5,roughness:0.5,metalness:0.1});
+        for (let i=0;i<16;i++) {
+          const a = (i/16)*Math.PI*2;
+          const pet = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,6), petalMat);
+          pet.position.set(Math.cos(a)*0.62, 0.52, Math.sin(a)*0.62);
+          pet.scale.set(1,1.6,0.7); g.add(pet);
+        }
+        // Body (robes) — wider, more draped shape
+        const robeMat = new THREE.MeshStandardMaterial({color:0xffa030, roughness:0.78, metalness:0.0});
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.46,0.95,14), robeMat);
+        body.position.y = 1.05; g.add(body);
+        // Lap/lower robe
+        const lap = new THREE.Mesh(new THREE.CylinderGeometry(0.44,0.38,0.30,14), robeMat);
+        lap.position.y = 0.73; g.add(lap);
+        // Neck
+        const skinMat = new THREE.MeshStandardMaterial({color:0xd4a96a, roughness:0.6, metalness:0.0});
+        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.15,0.18,10), skinMat);
+        neck.position.y = 1.58; g.add(neck);
+        // Head — elongated, serene
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25,14,12), skinMat);
+        head.position.y = 1.88; head.scale.set(1,1.22,0.98); g.add(head);
+        // Ushnisha (cranial protuberance)
+        const ushnMat = new THREE.MeshStandardMaterial({color:0x2255aa, roughness:0.6, metalness:0.1});
+        const ushn = new THREE.Mesh(new THREE.SphereGeometry(0.13,10,10), ushnMat);
+        ushn.position.y = 2.16; g.add(ushn);
+        // Curly hair dots
+        const hairMat = new THREE.MeshStandardMaterial({color:0x1a3d7a, roughness:0.7});
+        for (let i=0;i<20;i++) {
+          const phi = Math.random()*Math.PI*0.55;
+          const tht = Math.random()*Math.PI*2;
+          const hd = new THREE.Mesh(new THREE.SphereGeometry(0.028,4,4), hairMat);
+          hd.position.set(
+            Math.sin(phi)*Math.cos(tht)*0.24,
+            1.88 + Math.cos(phi)*0.24*1.22,
+            Math.sin(phi)*Math.sin(tht)*0.24
+          );
+          g.add(hd);
+        }
+        // Face details — eyes, urna
+        const eyeMat = new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.3});
+        [-0.09,0.09].forEach(ex => {
+          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028,6,6), eyeMat);
+          eye.position.set(ex, 1.87, 0.22); g.add(eye);
+        });
+        const urnaMat = new THREE.MeshStandardMaterial({color:0xffd700,emissive:0xffaa00,emissiveIntensity:1.5,metalness:0.8,roughness:0.2});
+        const urna = new THREE.Mesh(new THREE.SphereGeometry(0.025,6,6), urnaMat);
+        urna.position.set(0,1.90,0.23); g.add(urna);
+        // Right hand — mudra gesture (blessing hand)
+        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.08,8,6), skinMat);
+        hand.position.set(0.25,1.18,0.22); hand.scale.set(0.8,1.1,0.6); g.add(hand);
+        // Left hand in lap
+        const lhand = new THREE.Mesh(new THREE.SphereGeometry(0.08,8,6), skinMat);
+        lhand.position.set(-0.08,0.90,0.28); lhand.scale.set(1.2,0.6,0.8); g.add(lhand);
+        return g;
+      }
+
+      function buildDetailedStupaFallback() {
+        const g = new THREE.Group();
+        const stoneMat = new THREE.MeshStandardMaterial({
+          color:0xf5f0e8, roughness:0.82, metalness:0.05,
+        });
+        const goldMat = new THREE.MeshStandardMaterial({
+          color:0xffd700, roughness:0.25, metalness:0.85,
+          emissive:0xffaa00, emissiveIntensity:0.15,
+        });
+        const redMat  = new THREE.MeshStandardMaterial({color:0xcc2200, roughness:0.65});
+
+        // ─── Outer terrace / boundary wall
+        const outerWall = new THREE.Mesh(new THREE.CylinderGeometry(1.55,1.65,0.22,32), stoneMat);
+        outerWall.position.y=0.11; g.add(outerWall);
+
+        // ─── Stair-step podium (3 receding tiers)
+        const tiers = [
+          {r:1.32, h:0.24, y:0.22},
+          {r:1.10, h:0.26, y:0.46},
+          {r:0.90, h:0.26, y:0.72},
+        ];
+        tiers.forEach(({r,h,y}) => {
+          const t = new THREE.Mesh(new THREE.CylinderGeometry(r,r+0.08,h,32), stoneMat);
+          t.position.y = y+h/2; g.add(t);
+          // Gold band on each tier
+          const band = new THREE.Mesh(new THREE.TorusGeometry(r,0.022,6,32), goldMat);
+          band.rotation.x=Math.PI/2; band.position.y=y+h; g.add(band);
+        });
+
+        // ─── Anda (hemispherical dome) — main body
+        const anda = new THREE.Mesh(new THREE.SphereGeometry(0.88,32,18,0,Math.PI*2,0,Math.PI/2), stoneMat);
+        anda.position.y=0.98; g.add(anda);
+        // White plaster finish (slightly different shade for detail)
+        const andaDetail = new THREE.Mesh(new THREE.SphereGeometry(0.86,32,18,0,Math.PI*2,0,Math.PI*0.48),
+          new THREE.MeshStandardMaterial({color:0xfaf6ef,roughness:0.72,metalness:0.02}));
+        andaDetail.position.y=1.00; g.add(andaDetail);
+
+        // ─── Gold equatorial band
+        const eqBand = new THREE.Mesh(new THREE.TorusGeometry(0.88,0.042,8,40), goldMat);
+        eqBand.rotation.x=Math.PI/2; eqBand.position.y=0.98; g.add(eqBand);
+
+        // ─── Harmika (square relic chamber platform)
+        const harmika = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.28,0.42), stoneMat);
+        harmika.position.y=1.86; g.add(harmika);
+        // Gold trim on harmika
+        const harmGold = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.04,0.46),goldMat);
+        harmGold.position.y=2.00; g.add(harmGold);
+
+        // ─── Yasti (central spire shaft)
+        const yastiMat = new THREE.MeshStandardMaterial({color:0xc8a800,roughness:0.2,metalness:0.9,emissive:0xffbb00,emissiveIntensity:0.12});
+        const yasti = new THREE.Mesh(new THREE.CylinderGeometry(0.040,0.055,1.65,10), yastiMat);
+        yasti.position.y=2.95; g.add(yasti);
+
+        // ─── Chattra rings (7 honour discs descending in size)
+        const chattraR = [0.28,0.24,0.21,0.18,0.155,0.13,0.108];
+        chattraR.forEach((r,i) => {
+          const disc = new THREE.Mesh(new THREE.TorusGeometry(r,0.028,7,28), goldMat);
+          disc.rotation.x=Math.PI/2; disc.position.y=2.26+i*0.22; g.add(disc);
+        });
+
+        // ─── Pinnacle orb (final jewel)
+        const pinnacle = new THREE.Mesh(new THREE.SphereGeometry(0.085,12,10),
+          new THREE.MeshStandardMaterial({color:0xffee44,roughness:0.1,metalness:1.0,emissive:0xffcc00,emissiveIntensity:0.5}));
+        pinnacle.position.y=3.78; g.add(pinnacle);
+        // Flame finial above
+        const flame = new THREE.Mesh(new THREE.ConeGeometry(0.048,0.22,8),
+          new THREE.MeshStandardMaterial({color:0xffd700,roughness:0.15,metalness:0.8,emissive:0xffaa00,emissiveIntensity:0.8}));
+        flame.position.y=3.96; g.add(flame);
+
+        // ─── 4 Cardinal Lamp Posts (corner lamp niches)
+        const lampMat = new THREE.MeshStandardMaterial({color:0xffcc55,emissive:0xff8800,emissiveIntensity:2.5,transparent:true,opacity:0.9});
+        const postMat = new THREE.MeshStandardMaterial({color:0xd4a850,roughness:0.5,metalness:0.4});
+        [[1.15,0,0],[−1.15,0,0],[0,0,1.15],[0,0,−1.15]].forEach(([px,py,pz]) => {
+          // pillar
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.042,0.055,1.15,8),postMat);
+          post.position.set(px,0.58+py,pz); g.add(post);
+          // lamp globe
+          const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.072,8,8),lampMat);
+          lamp.position.set(px,1.18+py,pz); g.add(lamp);
+        });
+
+        // ─── Decorative wall niches / arched panels (8 around base)
+        const archMat = new THREE.MeshStandardMaterial({color:0xe8e0d0,roughness:0.85,metalness:0.0});
+        for (let i=0;i<8;i++) {
+          const a=(i/8)*Math.PI*2;
+          const arch=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.32,0.03),archMat);
+          arch.position.set(Math.cos(a)*1.04,0.64,Math.sin(a)*1.04);
+          arch.rotation.y=-a; g.add(arch);
+        }
+
+        return g;
+      }
+
       function getFallback(key) {
+        if (key==='buddha') return buildDetailedBuddhaFallback();
+        if (key==='stupa')  return buildDetailedStupaFallback();
+
         if (!_fbGeo[key]) {
-          _fbGeo.buddha       = new THREE.CylinderGeometry(0.5, 0.7, 3.6, 8);
-          _fbGeo.stupa        = new THREE.ConeGeometry(2.0, 6.5, 8);
-          _fbGeo.lotus1       = new THREE.SphereGeometry(0.10, 6, 6);
-          _fbGeo.lotus2       = new THREE.SphereGeometry(0.10, 6, 6);
-          _fbGeo.lotusLantern = new THREE.SphereGeometry(0.25, 6, 6);
-          _fbGeo.vesakLantern = new THREE.BoxGeometry(0.50, 0.65, 0.25);
-          _fbMat.buddha       = new THREE.MeshStandardMaterial({color:0xf3e5ab});
-          _fbMat.stupa        = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4});
+          _fbGeo.lotus1       = new THREE.SphereGeometry(0.1,6,6);
+          _fbGeo.lotus2       = new THREE.SphereGeometry(0.1,6,6);
+          _fbGeo.lotusLantern = new THREE.SphereGeometry(0.12,6,6);
+          _fbGeo.vesakLantern = new THREE.BoxGeometry(0.2,0.3,0.1);
           _fbMat.lotus1       = new THREE.MeshStandardMaterial({color:0xff7fbf});
           _fbMat.lotus2       = new THREE.MeshStandardMaterial({color:0xff99cc});
           _fbMat.lotusLantern = new THREE.MeshStandardMaterial({color:0xffaa55,emissive:0xff8800,emissiveIntensity:1});
           _fbMat.vesakLantern = new THREE.MeshStandardMaterial({color:0xff5522,emissive:0xff9933,emissiveIntensity:0.8});
         }
         const root = new THREE.Group();
-        const geo  = _fbGeo[key] || new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const geo  = _fbGeo[key] || new THREE.BoxGeometry(0.2,0.2,0.2);
         const mat  = _fbMat[key] || new THREE.MeshStandardMaterial({color:0xaaa});
         root.add(new THREE.Mesh(geo, mat));
         return root;
       }
 
-      /* Reusable Box3 helpers */
+      /* ── Reusable Box3 helpers ── */
       const _box3  = new THREE.Box3();
       const _size3 = new THREE.Vector3();
       const _cent3 = new THREE.Vector3();
 
-      /*
-        getModel — scales model so its Y-extent == targetHeight (metres).
-        This is the single correct way to enforce real-world size regardless
-        of whatever internal units the GLB was authored in.
-      */
       function getModel(key, targetHeight) {
-        /* Return null if model failed — caller should check before using */
-        if (!cache[key]) return null;
-        const root = cache[key].clone(true);
+        const root = cache[key] ? cache[key].clone(true) : getFallback(key);
         _box3.setFromObject(root);
         _box3.getSize(_size3);
         _box3.getCenter(_cent3);
@@ -314,13 +389,15 @@
         return root;
       }
 
-      /* Renderer */
+      /* ── Renderer ── */
       const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled        = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+      renderer.toneMapping       = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
 
       Object.assign(renderer.domElement.style, {
         position:'fixed', top:'0', left:'0', width:'100%', height:'100%', zIndex:'1'
@@ -328,45 +405,67 @@
       document.body.appendChild(renderer.domElement);
 
       const scene  = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 80);
+      const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 60);
 
-      /*
-        Lights — boosted range & intensity for the larger scene.
-        Sun shadow frustum widened to cover stupa (8 m away) and buddha (7 m away).
-      */
-      scene.add(new THREE.HemisphereLight(0xffe4b5, 0x664422, 1.5));
-      const sun = new THREE.DirectionalLight(0xfff8e0, 1.1);
-      sun.position.set(6, 18, 8);
+      /* ── Lights — ENHANCED for realism ── */
+      scene.add(new THREE.HemisphereLight(0xffe4b5, 0x664422, 1.3));
+
+      // Main sun — casts hard shadows on stupa & statue
+      const sun = new THREE.DirectionalLight(0xfff8e0, 1.2);
+      sun.position.set(4, 10, 5);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(512, 512);
-      sun.shadow.camera.near   = 0.5;
-      sun.shadow.camera.far    = 45;
-      sun.shadow.camera.left   = -16;
-      sun.shadow.camera.right  =  16;
-      sun.shadow.camera.top    =  16;
-      sun.shadow.camera.bottom = -16;
+      sun.shadow.mapSize.set(1024, 1024); // Higher res shadows for large objects
+      sun.shadow.camera.near = 0.1;
+      sun.shadow.camera.far  = 30;
+      sun.shadow.camera.left   = -8;
+      sun.shadow.camera.right  =  8;
+      sun.shadow.camera.top    =  8;
+      sun.shadow.camera.bottom = -8;
+      sun.shadow.bias = -0.001;
       scene.add(sun);
-      scene.add(new THREE.AmbientLight(0xffd580, 0.6));
 
-      /* PointLight pool — repositioned for wider, deeper scene */
+      // Fill light from opposite side
+      const fillLight = new THREE.DirectionalLight(0xb0d0ff, 0.35);
+      fillLight.position.set(-5, 6, -3);
+      scene.add(fillLight);
+
+      scene.add(new THREE.AmbientLight(0xffd580, 0.45));
+
+      // Dedicated stupa spot — golden glow from below
+      const stupaSpot = new THREE.SpotLight(0xffd080, 1.8, 18, Math.PI/5, 0.5, 1.2);
+      stupaSpot.position.set(5.5, 5.0, -5.5);
+      stupaSpot.target.position.set(5.5, 0, -5.5);
+      stupaSpot.castShadow = false;
+      scene.add(stupaSpot);
+      scene.add(stupaSpot.target);
+
+      // Dedicated buddha spot
+      const buddhaSpot = new THREE.SpotLight(0xffeebb, 1.4, 14, Math.PI/6, 0.4, 1.2);
+      buddhaSpot.position.set(-2.5, 5.5, -4.0);
+      buddhaSpot.target.position.set(-2.5, 0, -5.0);
+      buddhaSpot.castShadow = false;
+      scene.add(buddhaSpot);
+      scene.add(buddhaSpot.target);
+
+      /* ── PointLight pool ── */
       const POOL_SIZE = 6;
       const lightPool = [];
       const lightPhases    = [0, 0.8, 1.6, 2.4, 3.2, 4.0];
       const lightPositions = [
-        [-3.5,  2.5,  -7.0],  // buddha base
-        [ 8.0,  3.0,  -8.0],  // stupa base
-        [ 0.0,  2.0, -10.0],  // centre cluster
-        [ 0.0,  2.0,  -4.5],  // entrance
-        [-5.5,  1.2,  -6.0],
-        [ 5.5,  1.2,  -6.0],
+        [-2.5, 1.0, -5.0],
+        [ 5.5, 1.2, -5.5],
+        [ 0.0, 0.6, -7.5],
+        [ 0.0, 0.8, -3.5],
+        [-3.0, 0.5, -4.5],
+        [ 3.0, 0.5, -4.5],
       ];
       for (let i = 0; i < POOL_SIZE; i++) {
-        const pl = new THREE.PointLight(0xffa040, 1.2, 10.0);
+        const pl = new THREE.PointLight(0xffa040, 0.9, 5.5);
         pl.position.set(...lightPositions[i]);
         lightPool.push({ light: pl, phase: lightPhases[i] });
       }
 
-      /* Reticle */
+      /* ── Reticle ── */
       const reticle = new THREE.Mesh(
         new THREE.RingGeometry(0.08, 0.13, 32).rotateX(-Math.PI/2),
         new THREE.MeshBasicMaterial({ color:0x00ffcc, transparent:true, opacity:0.9 })
@@ -385,7 +484,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
 
-      /* AR state */
+      /* ── AR state ── */
       const CIRCUM     = 2*Math.PI*45;
       const FRAMES_DAY = 18, FRAMES_NIGHT = 5;
       const DRIFT_DAY  = 0.06, DRIFT_NIGHT = 0.18;
@@ -400,7 +499,7 @@
       let fireflyPoints = null;
       let fireflyPositions = null;
 
-      /* Brightness sensor */
+      /* ── Brightness sensor ── */
       let vidEl = null, brCtx = null;
       function startBrightness() {
         navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
@@ -431,7 +530,7 @@
         hitSource=null; hitRequested=false; placed=false; stableCount=0; sessionStart=null;
       });
 
-      /* Render loop */
+      /* ── Render loop ── */
       let _animFrame = 0;
       renderer.setAnimationLoop((ts, frame) => {
         _animFrame++;
@@ -485,7 +584,7 @@
         renderer.render(scene, camera);
       });
 
-      /* Place city */
+      /* ── Place city ── */
       function placeCity(method) {
         placed=true; reticle.visible=false; elRing.style.display='none';
         const world = new THREE.Group();
@@ -511,18 +610,9 @@
         setTimeout(hideStatus, 3000);
       }
 
-      /* ═══════════════════════════════════════════════════════════
+      /* ══════════════════════════════════════════════════════════════════
          BUILD CITY
-         All targetHeight values are REAL-WORLD METRES.
-         Reference: camera eye height ~1.6 m (typical AR user).
-
-         Buddha statue   → 3.6 m  (monumental, ~2× human height)
-         Sri Lanka stupa → 6.5 m  (towers over the scene, landmark)
-         Vesak lanterns  → 0.45–0.65 m  (real paper balloon)
-         Sky lanterns    → ~0.58 m tall (30 cm radius × 1.38 stretch)
-         Lotus lanterns  → 0.50 m
-         Lotus flowers   → 0.18–0.25 m
-      ═══════════════════════════════════════════════════════════ */
+      ══════════════════════════════════════════════════════════════════ */
       function buildCity(w) {
         lightPool.forEach(({ light }) => w.add(light));
         floorDeco(w);
@@ -535,208 +625,266 @@
         fireflyCloud(w);
       }
 
-      /* Floor mandala — wider rings to frame bigger scene */
+      /* ── Floor mandala ── */
       function floorDeco(p) {
         p.add(new THREE.Mesh(
-          new THREE.CircleGeometry(8.0, 64).rotateX(-Math.PI/2),
-          new THREE.MeshBasicMaterial({color:0xffd580,transparent:true,opacity:0.04,side:THREE.DoubleSide})
+          new THREE.CircleGeometry(7.0,64).rotateX(-Math.PI/2),
+          new THREE.MeshBasicMaterial({color:0xffd580,transparent:true,opacity:0.05,side:THREE.DoubleSide})
         ));
-        [1.8, 3.2, 5.0, 6.8].forEach(r => {
+        [1.2,2.3,3.5,4.7,5.9,7.0].forEach(r => {
           p.add(new THREE.Mesh(
-            new THREE.RingGeometry(r, r+0.03, 64).rotateX(-Math.PI/2),
+            new THREE.RingGeometry(r,r+0.025,64).rotateX(-Math.PI/2),
             new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:0.09,side:THREE.DoubleSide})
           ));
         });
       }
 
-      /*
-        Buddha statue
-        SCALE FIX: 1.9 m → 3.6 m
-        — At 1.9 m the statue was barely taller than a person; 3.6 m makes it
-          the commanding centrepiece a Vesak festival statue should be.
-        POSITION: x=-3.5, z=-7.0 — clear of path centre and stupa.
-        HALO: radius scaled up proportionally (0.58→0.90 m inner).
-        PEDESTAL: simple stone block grounds the statue on the floor plane.
-      */
+      /* ── Buddha statue — LARGE & REALISTIC ── */
       function buddhaStatue(p) {
-        if (!cache['buddha']) {
-          showStatus('⚠️ Buddha model unavailable — check R2 bucket CORS/public settings');
-          return;
-        }
-        const m = getModel('buddha', 3.6);
-        m.position.set(-3.5, 0, -7.0);
+        // TARGET HEIGHT: 3.8m — commanding, life-size presence
+        const m = getModel('buddha', 3.8);
+        m.position.set(-2.8, 0, -6.0);
         m.rotation.y = 0.22;
         p.add(m);
 
+        // Large, prominent golden halo
         const halo = new THREE.Mesh(
-          new THREE.RingGeometry(0.90, 1.12, 48),
-          new THREE.MeshBasicMaterial({color:0xffe070,transparent:true,opacity:0.65,side:THREE.DoubleSide})
+          new THREE.RingGeometry(0.90, 1.12, 56),
+          new THREE.MeshBasicMaterial({color:0xffe070,transparent:true,opacity:0.72,side:THREE.DoubleSide})
         );
-        halo.position.set(0, 3.90, -0.12);
-        halo.rotation.x = -0.15;
+        halo.position.set(0, 3.35, -0.10);
+        halo.rotation.x = -0.12;
         m.add(halo);
 
-        const inc = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 6),
-          new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.9}));
-        inc.position.set(-3.5, 0.90, -6.6);
-        p.add(inc);
-
-        // Stone pedestal
-        const ped = new THREE.Mesh(
-          new THREE.BoxGeometry(1.3, 0.55, 1.3),
-          new THREE.MeshStandardMaterial({color:0xd4c090,roughness:0.8,metalness:0.05})
+        // Outer halo ring glow
+        const haloGlow = new THREE.Mesh(
+          new THREE.RingGeometry(1.12, 1.45, 56),
+          new THREE.MeshBasicMaterial({color:0xffd030,transparent:true,opacity:0.28,side:THREE.DoubleSide})
         );
-        ped.position.set(-3.5, 0.275, -7.0);
-        p.add(ped);
+        haloGlow.position.set(0, 3.35, -0.12);
+        m.add(haloGlow);
+
+        // Ray spokes from halo (8 rays)
+        for (let i=0;i<8;i++) {
+          const a = (i/8)*Math.PI*2;
+          const ray = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.035,0.65),
+            new THREE.MeshBasicMaterial({color:0xffee80,transparent:true,opacity:0.22,side:THREE.DoubleSide})
+          );
+          ray.position.set(Math.cos(a)*1.3, 3.35+Math.sin(a)*1.3, -0.11);
+          ray.rotation.z = a;
+          m.add(ray);
+        }
+
+        // Incense smoke orb at base
+        const inc = new THREE.Mesh(new THREE.SphereGeometry(0.08,6,6),
+          new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.9}));
+        inc.position.set(-2.8, 0.65, -5.5); p.add(inc);
+
+        // Elevated stone pedestal for the statue
+        buildBuddhaPedestal(p, -2.8, 0, -6.0);
       }
 
-      /*
-        Sri Lanka Stupa
-        SCALE FIX: 2.4 m → 6.5 m
-        — 2.4 m was shorter than a doorway. At 6.5 m the stupa towers above
-          the camera (eye ~1.6 m), which is exactly how it feels to stand
-          before Ruwanwelisaya. The camera will have to tilt up to see the top.
-        POSITION: x=+8.0, z=-8.0 — well separated from buddha on the left.
-      */
+      function buildBuddhaPedestal(p, x, y, z) {
+        const stoneMat = new THREE.MeshStandardMaterial({color:0x8a7a6a,roughness:0.88,metalness:0.05});
+        const goldMat  = new THREE.MeshStandardMaterial({color:0xd4a830,roughness:0.3,metalness:0.7});
+        // 3-tier stone base
+        [
+          {w:2.0,h:0.22,d:2.0, y:0.11},
+          {w:1.7,h:0.20,d:1.7, y:0.33},
+          {w:1.4,h:0.18,d:1.4, y:0.52},
+        ].forEach(({w,h,d,y:ty}) => {
+          const t = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), stoneMat);
+          t.position.set(x,ty,z); t.receiveShadow=true; t.castShadow=true; p.add(t);
+        });
+        // Gold trim top
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(1.45,0.035,1.45),goldMat);
+        trim.position.set(x,0.715,z); p.add(trim);
+      }
+
+      /* ── Stupa — LARGE & HIGHLY DETAILED ── */
       function stupaRight(p) {
-        if (!cache['stupa']) {
-          showStatus('⚠️ Stupa model unavailable — check R2 bucket');
-          return;
-        }
-        const m = getModel('stupa', 6.5);
-        m.position.set(8.0, 0, -8.0);
+        const STUPA_X = 6.2, STUPA_Z = -6.2;
+        // TARGET HEIGHT: 4.5m — towering, dominant landmark
+        const m = getModel('stupa', 4.5);
+        m.position.set(STUPA_X, 0, STUPA_Z);
         m.rotation.y = -0.18;
         p.add(m);
+
+        // ── Surrounding terrace / courtyard
+        buildStupaCourtyard(p, STUPA_X, STUPA_Z);
+
+        // ── 4 Tall lamp posts at cardinal points
+        const lampMat = new THREE.MeshStandardMaterial({color:0xffcc55,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.92});
+        const postMat = new THREE.MeshStandardMaterial({color:0xc8a030,roughness:0.35,metalness:0.75});
+        const LAMP_OFFSETS = [[1.8,0,0],[-1.8,0,0],[0,0,1.8],[0,0,-1.8]];
+        LAMP_OFFSETS.forEach(([ox,oy,oz]) => {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.075,2.2,8), postMat);
+          post.position.set(STUPA_X+ox, 1.1, STUPA_Z+oz);
+          post.castShadow=true; p.add(post);
+          // Finial top on post
+          const fin = new THREE.Mesh(new THREE.ConeGeometry(0.06,0.22,6), postMat);
+          fin.position.set(STUPA_X+ox, 2.32, STUPA_Z+oz);
+          p.add(fin);
+          // Lamp globe
+          const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.10,10,10), lampMat);
+          lamp.position.set(STUPA_X+ox, 2.20, STUPA_Z+oz); p.add(lamp);
+          // Point light from lamp
+          const pl = new THREE.PointLight(0xff9922, 0.6, 3.5);
+          pl.position.set(STUPA_X+ox, 2.2, STUPA_Z+oz); p.add(pl);
+        });
+
+        // ── 8 smaller lotus flowers around base
+        for (let i=0;i<8;i++) {
+          const a = (i/8)*Math.PI*2;
+          const lo = getModel(i%2===0?'lotus1':'lotus2', 0.18+Math.random()*0.06);
+          lo.position.set(STUPA_X+Math.cos(a)*2.2, 0, STUPA_Z+Math.sin(a)*2.2);
+          lo.rotation.y = Math.random()*Math.PI*2;
+          p.add(lo);
+        }
       }
 
-      /*
-        Vesak lantern cluster
-        SCALE FIX: heights 0.50–0.75 → 0.45–0.65 m
-        — Real Vesak paper lanterns are 40–60 cm tall; 0.75 m was oversized.
-        POSITIONS: pushed back/wider to frame the larger scene.
-      */
+      function buildStupaCourtyard(p, cx, cz) {
+        const stoneMat = new THREE.MeshStandardMaterial({color:0xd8cfc0,roughness:0.88,metalness:0.04});
+        // Circular courtyard floor
+        const court = new THREE.Mesh(
+          new THREE.CircleGeometry(3.2,40).rotateX(-Math.PI/2),
+          new THREE.MeshStandardMaterial({color:0xd0c8b8,roughness:0.92,metalness:0.02})
+        );
+        court.position.set(cx,0.01,cz);
+        court.receiveShadow=true; p.add(court);
+        // Low boundary wall ring
+        const wall = new THREE.Mesh(
+          new THREE.TorusGeometry(3.1,0.095,6,48),
+          stoneMat
+        );
+        wall.rotation.x=Math.PI/2; wall.position.set(cx,0.1,cz);
+        p.add(wall);
+        // 4 gateway pillars
+        const gateAngles = [0, Math.PI/2, Math.PI, Math.PI*1.5];
+        const pilMat = new THREE.MeshStandardMaterial({color:0xc0b090,roughness:0.75,metalness:0.08});
+        gateAngles.forEach(a => {
+          const px=cx+Math.cos(a)*3.1, pz=cz+Math.sin(a)*3.1;
+          [-0.22,0.22].forEach(off => {
+            const pil = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.72,0.14),pilMat);
+            pil.position.set(px+Math.cos(a+Math.PI/2)*off, 0.36, pz+Math.sin(a+Math.PI/2)*off);
+            pil.castShadow=true; p.add(pil);
+            // Cap
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.08,0.18),pilMat);
+            cap.position.set(px+Math.cos(a+Math.PI/2)*off, 0.76, pz+Math.sin(a+Math.PI/2)*off);
+            p.add(cap);
+          });
+        });
+      }
+
+      /* ── Vesak lantern cluster ── */
       function vesakLanternCluster(p) {
         const spots = [
-          [0,    2.8, -9.5,  0.65],
-          [-1.4, 2.5, -11.0, 0.55],
-          [ 1.4, 2.5, -11.0, 0.55],
-          [-0.6, 2.2, -8.0,  0.50],
-          [ 0.6, 2.2, -8.0,  0.50],
-          [ 0,   3.0, -12.5, 0.50],
-          [-2.2, 2.4, -9.0,  0.45],
-          [ 2.2, 2.4, -9.0,  0.45],
+          [0,    2.0, -7.5, 0.75],
+          [-1.1, 1.8, -8.5, 0.55],
+          [ 1.1, 1.8, -8.5, 0.55],
+          [-0.5, 1.6, -6.5, 0.50],
+          [ 0.5, 1.6, -6.5, 0.50],
+          [ 0,   2.2, -9.5, 0.50],
+          [-1.8, 1.7, -7.0, 0.45],
+          [ 1.8, 1.7, -7.0, 0.45],
         ];
         const stringMat = new THREE.MeshBasicMaterial({color:0x8b6914});
 
         spots.forEach(([x, hangY, z, h]) => {
           const m = getModel('vesakLantern', h);
-          if (!m) return;
           m.position.set(x, hangY, z);
           m.rotation.y = (Math.random()-0.5)*0.6;
           p.add(m);
 
-          const ceilY  = 4.2;
-          const topY   = hangY + h;
+          const ceilY = 3.2;
+          const topY  = hangY + h;
           const strLen = ceilY - topY;
           if (strLen > 0.05) {
-            const sg = new THREE.CylinderGeometry(0.006, 0.006, strLen, 4);
+            const sg = new THREE.CylinderGeometry(0.005, 0.005, strLen, 4);
             const sm = new THREE.Mesh(sg, stringMat);
             sm.position.set(x, topY + strLen/2, z);
             p.add(sm);
           }
         });
 
-        // String light beads spanning wider scene
-        for (let i = 0; i <= 16; i++) {
-          const t = i/16;
+        // String light beads
+        for (let i=0; i<=14; i++) {
+          const t = i/14;
           const bead = new THREE.Mesh(
-            new THREE.SphereGeometry(0.065, 5, 5),
+            new THREE.SphereGeometry(0.052,5,5),
             new THREE.MeshStandardMaterial({color:0xff9933,emissive:0xff6600,emissiveIntensity:2.8,transparent:true,opacity:0.95})
           );
           bead.position.set(
-            -3.5 + t*7.0,
-            2.8 - Math.sin(t*Math.PI)*0.5,
-            -6.5 - t*0.6
+            -2.5 + t*5.5,
+            2.1 - Math.sin(t*Math.PI)*0.4,
+            -5.0 - t*0.5
           );
           p.add(bead);
         }
       }
 
-      /* Lotus path */
+      /* ── Lotus path ── */
       function lotusPath(p) {
-        for (let i = 0; i < 13; i++) {
+        for (let i=0; i<11; i++) {
           const key = i%2===0 ? 'lotus1' : 'lotus2';
-          const h   = 0.20 + Math.random()*0.10;
+          const h   = 0.18 + Math.random()*0.10;
           const m   = getModel(key, h);
-          if (!m) continue;
-          const sx  = i%2===0 ? -0.70 : 0.70;
-          m.position.set(sx+(Math.random()-0.5)*0.14, 0, -1.5 - i*1.15 + (Math.random()-0.5)*0.20);
+          const sx  = i%2===0 ? -0.62 : 0.62;
+          m.position.set(sx+(Math.random()-0.5)*0.12, 0, -1.5-i*1.05+(Math.random()-0.5)*0.18);
           m.rotation.y = Math.random()*Math.PI*2;
           p.add(m);
         }
 
-        // Side clusters — clear of buddha (x=-3.5) and stupa (x=+8)
         [
-          [-2.2, 0, -3.0], [2.2, 0, -3.0],
-          [-2.0, 0, -11.0],[2.0, 0, -11.0],
-          [-5.0, 0, -9.0], [5.0, 0, -9.0],
-        ].forEach(([x, y, z], idx) => {
+          [-1.9,0,-2.5],[1.9,0,-2.5],
+          [-1.6,0,-8.5],[1.6,0,-8.5],
+          [-4.0,0,-7.5],[4.0,0,-7.5],
+        ].forEach(([x,y,z],idx) => {
           const n = 2 + Math.floor(Math.random()*3);
-          for (let j = 0; j < n; j++) {
+          for (let j=0; j<n; j++) {
             const a = (j/n)*Math.PI*2;
-            const m = getModel(idx%2===0 ? 'lotus1' : 'lotus2', 0.14+Math.random()*0.08);
-            if (!m) continue;
-            m.position.set(x+Math.cos(a)*0.40, 0, z+Math.sin(a)*0.40);
+            const m = getModel(idx%2===0?'lotus1':'lotus2', 0.12+Math.random()*0.07);
+            m.position.set(x+Math.cos(a)*0.35, 0, z+Math.sin(a)*0.35);
             m.rotation.y = Math.random()*Math.PI*2;
             p.add(m);
           }
         });
       }
 
-      /*
-        Lotus lanterns
-        SCALE FIX: 0.36 → 0.50 m — more visible at real-world scale.
-      */
+      /* ── Lotus lanterns ── */
       function lotusLanterns(p) {
         [
-          [-1.6, 0, -13.0],[1.6, 0, -13.0],
-          [-3.2, 0, -11.5],[3.2, 0, -11.5],
-          [-0.7, 0, -15.0],[0.7, 0, -15.0],
-          [0,    0, -16.0],
-        ].forEach(([x, y, z]) => {
-          const m = getModel('lotusLantern', 0.50);
-          if (!m) return;
-          m.position.set(x, y, z);
+          [-1.3,0,-10],[1.3,0,-10],
+          [-2.6,0,-8.8],[2.6,0,-8.8],
+          [-0.6,0,-11.5],[0.6,0,-11.5],
+          [0,0,-12.5],
+        ].forEach(([x,y,z]) => {
+          const m = getModel('lotusLantern', 0.36);
+          m.position.set(x,y,z);
           m.rotation.y = Math.random()*Math.PI*2;
           p.add(m);
         });
       }
 
-      /*
-        Flying sky lanterns
-        SCALE FIX: body SphereGeometry radius 0.21 → 0.30 m
-        — A real sky lantern is ~50–60 cm tall; the old size was too small
-          to read against the larger stupa/buddha in the scene.
-      */
+      /* ── Flying sky lanterns ── */
       function flyingLanternGroup(p, count) {
-        for (let i = 0; i < count; i++) {
+        for (let i=0; i<count; i++) {
           const l = mkSkyLantern();
-          l.position.set((Math.random()-0.5)*12, 0.6+Math.random()*0.8, -1-Math.random()*14);
+          l.position.set((Math.random()-0.5)*8, 0.4+Math.random()*0.5, -1-Math.random()*10);
           l.userData = {
             speed : 0.011+Math.random()*0.019,
             driftX: (Math.random()-0.5)*0.0014,
             driftZ: -0.001-Math.random()*0.001,
             phase : Math.random()*Math.PI*2
           };
-          flyingLanterns.push(l);
-          p.add(l);
+          flyingLanterns.push(l); p.add(l);
         }
       }
 
-      /* Shared lantern geometry — SCALE FIX: all dims ~×1.43 */
-      const _lanternBodyGeo = new THREE.SphereGeometry(0.30, 8, 6);
-      const _lanternRingGeo = new THREE.TorusGeometry(0.23, 0.030, 5, 16);
-      const _lanternFlamGeo = new THREE.ConeGeometry(0.080, 0.27, 5);
+      const _lanternBodyGeo = new THREE.SphereGeometry(0.21,8,6);
+      const _lanternRingGeo = new THREE.TorusGeometry(0.16,0.022,5,16);
+      const _lanternFlamGeo = new THREE.ConeGeometry(0.056,0.19,5);
       const _lanternBodyMat = new THREE.MeshStandardMaterial({color:0xffeb99,emissive:0xffd36b,emissiveIntensity:1.5,transparent:true,opacity:0.87});
       const _lanternRingMat = new THREE.MeshStandardMaterial({color:0x7a4a2c});
       const _lanternFlamMat = new THREE.MeshStandardMaterial({color:0xffa533,emissive:0xff7700,emissiveIntensity:4});
@@ -744,37 +892,46 @@
       function mkSkyLantern() {
         const g = new THREE.Group();
         const b = new THREE.Mesh(_lanternBodyGeo, _lanternBodyMat);
-        b.scale.set(1, 1.38, 1); g.add(b);
+        b.scale.set(1,1.38,1); g.add(b);
         const r = new THREE.Mesh(_lanternRingGeo, _lanternRingMat);
-        r.rotation.x = Math.PI/2; r.position.y = -0.40; g.add(r);
+        r.rotation.x=Math.PI/2; r.position.y=-0.28; g.add(r);
         const f = new THREE.Mesh(_lanternFlamGeo, _lanternFlamMat);
-        f.position.y = -0.27; f.rotation.x = Math.PI; g.add(f);
+        f.position.y=-0.19; f.rotation.x=Math.PI; g.add(f);
         return g;
       }
 
-      /* Fireflies */
+      /* ── Fireflies ── */
       const FF_COUNT = 20;
       function fireflyCloud(p) {
         fireflyPositions = new Float32Array(FF_COUNT * 3);
+        const baseY  = new Float32Array(FF_COUNT);
+        const phases = new Float32Array(FF_COUNT);
+
         for (let i = 0; i < FF_COUNT; i++) {
-          fireflyPositions[i*3]   = (Math.random()-0.5)*13;
-          fireflyPositions[i*3+1] = 0.20 + Math.random()*3.0;
-          fireflyPositions[i*3+2] = -0.5 - Math.random()*14;
+          fireflyPositions[i*3]   = (Math.random()-0.5)*9;
+          fireflyPositions[i*3+1] = 0.15 + Math.random()*2.0;
+          fireflyPositions[i*3+2] = -0.5 - Math.random()*11;
+          baseY[i]  = fireflyPositions[i*3+1];
+          phases[i] = Math.random()*Math.PI*2;
         }
 
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
+        geo.userData = { baseY, phases };
 
         const mat = new THREE.PointsMaterial({
-          color: 0xffe7aa, size: 0.09,
-          transparent: true, opacity: 0.85, sizeAttenuation: true,
+          color: 0xffe7aa,
+          size: 0.07,
+          transparent: true,
+          opacity: 0.85,
+          sizeAttenuation: true,
         });
 
         fireflyPoints = new THREE.Points(geo, mat);
         p.add(fireflyPoints);
       }
 
-      /* Animations */
+      /* ── Animations ── */
       function animLanterns(t) {
         flyingLanterns.forEach(l => {
           l.position.y += l.userData.speed;
@@ -782,19 +939,21 @@
           l.position.z += l.userData.driftZ;
           l.rotation.y += 0.003;
           l.rotation.z  = Math.sin(t*0.001+l.userData.phase)*0.05;
-          if (l.position.y > 18) {
-            l.position.y = 0.6;
-            l.position.x = (Math.random()-0.5)*12;
-            l.position.z = -1-Math.random()*14;
+          if (l.position.y > 14) {
+            l.position.y = 0.5;
+            l.position.x = (Math.random()-0.5)*8;
+            l.position.z = -1-Math.random()*10;
           }
         });
       }
 
       function animLights(t) {
         lightPool.forEach(({ light, phase }) => {
-          light.intensity = 0.70 + 0.38*Math.sin(t*0.006+phase);
+          light.intensity = 0.52 + 0.30*Math.sin(t*0.006+phase);
           light.color.setHSL(0.09, 0.9, 0.50+0.13*Math.sin(t*0.011+phase));
         });
+        // Pulse the stupa spot slightly for dramatic effect
+        stupaSpot.intensity = 1.6 + 0.4*Math.sin(t*0.003);
       }
 
       function animFireflies(t) {
@@ -803,13 +962,13 @@
         for (let i = 0; i < FF_COUNT; i++) {
           pos.array[i*3]   += Math.sin(t*0.0007+i)*0.0006;
           pos.array[i*3+1] += 0.0019;
-          if (pos.array[i*3+1] > 3.5) pos.array[i*3+1] = 0.20;
+          if (pos.array[i*3+1] > 2.7) pos.array[i*3+1] = 0.15;
         }
         pos.needsUpdate = true;
         fireflyPoints.material.opacity = 0.55 + 0.35*Math.abs(Math.sin(t*0.0014));
       }
 
-      /* Status helpers */
+      /* ── Status helpers ── */
       function showStatus(msg){ elStatus.textContent=msg; elStatus.style.display='block'; elStatus.style.opacity='1'; }
       function hideStatus(){ elStatus.style.opacity='0'; setTimeout(()=>elStatus.style.display='none',400); }
       function setRing(pct){
@@ -818,6 +977,7 @@
         elRingFill.style.stroke = `hsl(${pct<50?174:174+(pct-50)*1.8},100%,55%)`;
       }
 
+      /* ── Start ── */
       await preload();
 
     </script>
