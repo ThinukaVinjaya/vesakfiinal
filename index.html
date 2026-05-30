@@ -451,7 +451,6 @@
         stupaRight(w);
         vesakLanternCluster(w);
         lotusLanterns(w);
-        pathPoles(w);
         flyingLanternGroup(w, 18);
         gardenOrbs(w);
         fireflyCloud(w);
@@ -629,27 +628,7 @@
         });
       }
 
-      /* Path poles — emissive glowing tops, no extra PointLights */
-      function pathPoles(p) {
-        const poleMat = new THREE.MeshStandardMaterial({color:0x7a4a20,roughness:0.85});
-        const ballMat = new THREE.MeshStandardMaterial({color:0xffaa33,emissive:0xff8800,emissiveIntensity:2.2,transparent:true,opacity:0.93});
-        // Pole height 2.4 so ball sits at y=2.5 — clearly above the 2.1m string lights
-        const poleGeo = new THREE.CylinderGeometry(0.03,0.04,2.4,6);
-        const ballGeo = new THREE.SphereGeometry(0.092,8,8);
-
-        // ±1.45 keeps poles clearly outside the ±1.25 lantern cluster x-range
-        [-1.45, 1.45].forEach(sx => {
-          for (let i=0; i<8; i++) {
-            const z = -1.4-i*1.5;
-            const pole = new THREE.Mesh(poleGeo, poleMat);
-            pole.position.set(sx, 1.2, z);   // centre of 2.4m pole → base at 0, top at 2.4
-            p.add(pole);
-            const ball = new THREE.Mesh(ballGeo, ballMat);
-            ball.position.set(sx, 2.5, z);   // sits at tip of pole
-            p.add(ball);
-          }
-        });
-      }
+     
 
       /* Flying sky lanterns */
       function flyingLanternGroup(p, count) {
