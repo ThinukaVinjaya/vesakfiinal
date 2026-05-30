@@ -96,7 +96,7 @@
       import { GLTFLoader }  from 'three/addons/loaders/GLTFLoader.js';
       import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-      /* ── DOM ── */
+      /* DOM */
       const elLoading   = document.getElementById('loading');
       const elLoadSub   = document.getElementById('loadSub');
       const elProgLabel = document.getElementById('progLabel');
@@ -109,7 +109,7 @@
       const elNight     = document.getElementById('nightBadge');
       const elTick      = document.getElementById('placedTick');
 
-      /* ── R2 model URLs ── */
+      /* R2 model URLs */
       const R2 = 'https://pub-7cbad791f95e4c9680981f095fab45e1.r2.dev/';
       const MODELS = [
         { key:'buddha',       url: R2+'stone_buddha_statue.glb', label:'Buddha Statue'   },
@@ -120,7 +120,7 @@
         { key:'stupa',        url: R2+'sthupa_srilanka.glb',     label:'Sri Lanka Stupa' },
       ];
 
-      /* ── GLTF / DRACO loader ── */
+      /* GLTF / DRACO loader */
       const draco = new DRACOLoader();
       draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.5/');
       const gltfLoader = new GLTFLoader();
@@ -128,7 +128,6 @@
 
       const cache = {};
 
-      /* ── Parallel model loading ── */
       async function preload() {
         let done = 0;
         const total = MODELS.length;
@@ -174,17 +173,17 @@
         setTimeout(() => elLoading.style.display = 'none', 700);
       }
 
-      /* ── Fallback geometries (created once, shared) ── */
+      /* Fallback geometries — sizes match new realistic scales */
       const _fbGeo = {};
       const _fbMat = {};
       function getFallback(key) {
         if (!_fbGeo[key]) {
-          _fbGeo.buddha       = new THREE.CylinderGeometry(0.2,0.3,1,8);
-          _fbGeo.stupa        = new THREE.ConeGeometry(0.4,1.8,8);
-          _fbGeo.lotus1       = new THREE.SphereGeometry(0.1,6,6);
-          _fbGeo.lotus2       = new THREE.SphereGeometry(0.1,6,6);
-          _fbGeo.lotusLantern = new THREE.SphereGeometry(0.12,6,6);
-          _fbGeo.vesakLantern = new THREE.BoxGeometry(0.2,0.3,0.1);
+          _fbGeo.buddha       = new THREE.CylinderGeometry(0.5, 0.7, 3.6, 8);
+          _fbGeo.stupa        = new THREE.ConeGeometry(2.0, 6.5, 8);
+          _fbGeo.lotus1       = new THREE.SphereGeometry(0.10, 6, 6);
+          _fbGeo.lotus2       = new THREE.SphereGeometry(0.10, 6, 6);
+          _fbGeo.lotusLantern = new THREE.SphereGeometry(0.25, 6, 6);
+          _fbGeo.vesakLantern = new THREE.BoxGeometry(0.50, 0.65, 0.25);
           _fbMat.buddha       = new THREE.MeshStandardMaterial({color:0xf3e5ab});
           _fbMat.stupa        = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4});
           _fbMat.lotus1       = new THREE.MeshStandardMaterial({color:0xff7fbf});
@@ -193,17 +192,22 @@
           _fbMat.vesakLantern = new THREE.MeshStandardMaterial({color:0xff5522,emissive:0xff9933,emissiveIntensity:0.8});
         }
         const root = new THREE.Group();
-        const geo  = _fbGeo[key] || new THREE.BoxGeometry(0.2,0.2,0.2);
+        const geo  = _fbGeo[key] || new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const mat  = _fbMat[key] || new THREE.MeshStandardMaterial({color:0xaaa});
         root.add(new THREE.Mesh(geo, mat));
         return root;
       }
 
-      /* ── Reusable Box3 helpers ── */
+      /* Reusable Box3 helpers */
       const _box3  = new THREE.Box3();
       const _size3 = new THREE.Vector3();
       const _cent3 = new THREE.Vector3();
 
+      /*
+        getModel — scales model so its Y-extent == targetHeight (metres).
+        This is the single correct way to enforce real-world size regardless
+        of whatever internal units the GLB was authored in.
+      */
       function getModel(key, targetHeight) {
         const root = cache[key] ? cache[key].clone(true) : getFallback(key);
         _box3.setFromObject(root);
@@ -217,9 +221,8 @@
         return root;
       }
 
-      /* ── Renderer ── */
+      /* Renderer */
       const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-      // FIX SPEED: cap pixel ratio at 1.5 instead of 2 — big win on high-DPI mobile
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled        = true;
@@ -232,39 +235,45 @@
       document.body.appendChild(renderer.domElement);
 
       const scene  = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 60);
+      const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 80);
 
-      /* ── Lights ── */
-      scene.add(new THREE.HemisphereLight(0xffe4b5, 0x664422, 1.3));
-      const sun = new THREE.DirectionalLight(0xfff8e0, 0.9);
-      sun.position.set(4, 10, 5);
+      /*
+        Lights — boosted range & intensity for the larger scene.
+        Sun shadow frustum widened to cover stupa (8 m away) and buddha (7 m away).
+      */
+      scene.add(new THREE.HemisphereLight(0xffe4b5, 0x664422, 1.5));
+      const sun = new THREE.DirectionalLight(0xfff8e0, 1.1);
+      sun.position.set(6, 18, 8);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(512, 512); // FIX SPEED: 512 vs 1024 → 4× cheaper shadow map
-      sun.shadow.camera.near = 0.5;
-      sun.shadow.camera.far  = 25;
+      sun.shadow.mapSize.set(512, 512);
+      sun.shadow.camera.near   = 0.5;
+      sun.shadow.camera.far    = 45;
+      sun.shadow.camera.left   = -16;
+      sun.shadow.camera.right  =  16;
+      sun.shadow.camera.top    =  16;
+      sun.shadow.camera.bottom = -16;
       scene.add(sun);
-      scene.add(new THREE.AmbientLight(0xffd580, 0.5));
+      scene.add(new THREE.AmbientLight(0xffd580, 0.6));
 
-      /* ── PointLight pool (reduced to 6 for speed) ── */
-      // FIX SPEED: 8 → 6 pool lights, fewer GPU light passes
+      /* PointLight pool — repositioned for wider, deeper scene */
       const POOL_SIZE = 6;
       const lightPool = [];
       const lightPhases    = [0, 0.8, 1.6, 2.4, 3.2, 4.0];
       const lightPositions = [
-        [-2.5, 1.0, -5.0],
-        [ 5.5, 1.2, -5.5],
-        [ 0.0, 0.6, -7.5],
-        [ 0.0, 0.8, -3.5],
-        [-3.0, 0.5, -4.5],
-        [ 3.0, 0.5, -4.5],
+        [-3.5,  2.5,  -7.0],  // buddha base
+        [ 8.0,  3.0,  -8.0],  // stupa base
+        [ 0.0,  2.0, -10.0],  // centre cluster
+        [ 0.0,  2.0,  -4.5],  // entrance
+        [-5.5,  1.2,  -6.0],
+        [ 5.5,  1.2,  -6.0],
       ];
       for (let i = 0; i < POOL_SIZE; i++) {
-        const pl = new THREE.PointLight(0xffa040, 0.9, 5.5);
+        const pl = new THREE.PointLight(0xffa040, 1.2, 10.0);
         pl.position.set(...lightPositions[i]);
         lightPool.push({ light: pl, phase: lightPhases[i] });
       }
 
-      /* ── Reticle ── */
+      /* Reticle */
       const reticle = new THREE.Mesh(
         new THREE.RingGeometry(0.08, 0.13, 32).rotateX(-Math.PI/2),
         new THREE.MeshBasicMaterial({ color:0x00ffcc, transparent:true, opacity:0.9 })
@@ -283,7 +292,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
 
-      /* ── AR state ── */
+      /* AR state */
       const CIRCUM     = 2*Math.PI*45;
       const FRAMES_DAY = 18, FRAMES_NIGHT = 5;
       const DRIFT_DAY  = 0.06, DRIFT_NIGHT = 0.18;
@@ -298,7 +307,7 @@
       let fireflyPoints = null;
       let fireflyPositions = null;
 
-      /* ── Brightness sensor ── */
+      /* Brightness sensor */
       let vidEl = null, brCtx = null;
       function startBrightness() {
         navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
@@ -329,8 +338,7 @@
         hitSource=null; hitRequested=false; placed=false; stableCount=0; sessionStart=null;
       });
 
-      /* ── Render loop ── */
-      // FIX SPEED: throttle non-critical animations — only animate every other frame
+      /* Render loop */
       let _animFrame = 0;
       renderer.setAnimationLoop((ts, frame) => {
         _animFrame++;
@@ -377,7 +385,6 @@
         }
 
         animLanterns(ts);
-        // FIX SPEED: lights and fireflies on every other frame — imperceptible difference
         if (_animFrame % 2 === 0) {
           animLights(ts);
           animFireflies(ts);
@@ -385,7 +392,7 @@
         renderer.render(scene, camera);
       });
 
-      /* ── Place city ── */
+      /* Place city */
       function placeCity(method) {
         placed=true; reticle.visible=false; elRing.style.display='none';
         const world = new THREE.Group();
@@ -411,9 +418,18 @@
         setTimeout(hideStatus, 3000);
       }
 
-      /* ══════════════════════════════════════════════════════════════════
+      /* ═══════════════════════════════════════════════════════════
          BUILD CITY
-      ══════════════════════════════════════════════════════════════════ */
+         All targetHeight values are REAL-WORLD METRES.
+         Reference: camera eye height ~1.6 m (typical AR user).
+
+         Buddha statue   → 3.6 m  (monumental, ~2× human height)
+         Sri Lanka stupa → 6.5 m  (towers over the scene, landmark)
+         Vesak lanterns  → 0.45–0.65 m  (real paper balloon)
+         Sky lanterns    → ~0.58 m tall (30 cm radius × 1.38 stretch)
+         Lotus lanterns  → 0.50 m
+         Lotus flowers   → 0.18–0.25 m
+      ═══════════════════════════════════════════════════════════ */
       function buildCity(w) {
         lightPool.forEach(({ light }) => w.add(light));
         floorDeco(w);
@@ -423,64 +439,91 @@
         vesakLanternCluster(w);
         lotusLanterns(w);
         flyingLanternGroup(w, 18);
-        // FIX SPEED: removed gardenOrbs — replaced ambient glow with emissive beads already in scene
         fireflyCloud(w);
       }
 
-      /* ── Floor mandala ── */
+      /* Floor mandala — wider rings to frame bigger scene */
       function floorDeco(p) {
         p.add(new THREE.Mesh(
-          new THREE.CircleGeometry(5.5,64).rotateX(-Math.PI/2),
+          new THREE.CircleGeometry(8.0, 64).rotateX(-Math.PI/2),
           new THREE.MeshBasicMaterial({color:0xffd580,transparent:true,opacity:0.04,side:THREE.DoubleSide})
         ));
-        [1.2,2.3,3.5,4.7].forEach(r => {
+        [1.8, 3.2, 5.0, 6.8].forEach(r => {
           p.add(new THREE.Mesh(
-            new THREE.RingGeometry(r,r+0.025,64).rotateX(-Math.PI/2),
+            new THREE.RingGeometry(r, r+0.03, 64).rotateX(-Math.PI/2),
             new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:0.09,side:THREE.DoubleSide})
           ));
         });
       }
 
-      /* ── Buddha statue ── */
+      /*
+        Buddha statue
+        SCALE FIX: 1.9 m → 3.6 m
+        — At 1.9 m the statue was barely taller than a person; 3.6 m makes it
+          the commanding centrepiece a Vesak festival statue should be.
+        POSITION: x=-3.5, z=-7.0 — clear of path centre and stupa.
+        HALO: radius scaled up proportionally (0.58→0.90 m inner).
+        PEDESTAL: simple stone block grounds the statue on the floor plane.
+      */
       function buddhaStatue(p) {
-        const m = getModel('buddha', 1.9);
-        m.position.set(-2.5, 0, -5);
+        const m = getModel('buddha', 3.6);
+        m.position.set(-3.5, 0, -7.0);
         m.rotation.y = 0.22;
         p.add(m);
 
         const halo = new THREE.Mesh(
-          new THREE.RingGeometry(0.58,0.72,40),
+          new THREE.RingGeometry(0.90, 1.12, 48),
           new THREE.MeshBasicMaterial({color:0xffe070,transparent:true,opacity:0.65,side:THREE.DoubleSide})
         );
-        halo.position.set(0, 2.15, -0.08); halo.rotation.x = -0.15;
+        halo.position.set(0, 3.90, -0.12);
+        halo.rotation.x = -0.15;
         m.add(halo);
 
-        const inc = new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),
+        const inc = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 6),
           new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.9}));
-        inc.position.set(-2.5, 0.65, -4.6); p.add(inc);
+        inc.position.set(-3.5, 0.90, -6.6);
+        p.add(inc);
+
+        // Stone pedestal
+        const ped = new THREE.Mesh(
+          new THREE.BoxGeometry(1.3, 0.55, 1.3),
+          new THREE.MeshStandardMaterial({color:0xd4c090,roughness:0.8,metalness:0.05})
+        );
+        ped.position.set(-3.5, 0.275, -7.0);
+        p.add(ped);
       }
 
-      /* ── Stupa — FIX 1: NO lotus flowers around stupa, NO offering candles ── */
+      /*
+        Sri Lanka Stupa
+        SCALE FIX: 2.4 m → 6.5 m
+        — 2.4 m was shorter than a doorway. At 6.5 m the stupa towers above
+          the camera (eye ~1.6 m), which is exactly how it feels to stand
+          before Ruwanwelisaya. The camera will have to tilt up to see the top.
+        POSITION: x=+8.0, z=-8.0 — well separated from buddha on the left.
+      */
       function stupaRight(p) {
-        const STUPA_X = 5.5, STUPA_Z = -5.5;
-        const m = getModel('stupa', 2.4);
-        m.position.set(STUPA_X, 0, STUPA_Z);
+        const m = getModel('stupa', 6.5);
+        m.position.set(8.0, 0, -8.0);
         m.rotation.y = -0.18;
         p.add(m);
-        // ✅ Removed: 8 lotus ring, 4 candle orbs — stupa area is now clean
       }
 
-      /* ── Vesak lantern cluster ── */
+      /*
+        Vesak lantern cluster
+        SCALE FIX: heights 0.50–0.75 → 0.45–0.65 m
+        — Real Vesak paper lanterns are 40–60 cm tall; 0.75 m was oversized.
+        POSITIONS: pushed back/wider to frame the larger scene.
+      */
       function vesakLanternCluster(p) {
         const spots = [
-          [0,    2.0, -7.5, 0.75],
-          [-1.1, 1.8, -8.5, 0.55],
-          [ 1.1, 1.8, -8.5, 0.55],
-          [-0.5, 1.6, -6.5, 0.50],
-          [ 0.5, 1.6, -6.5, 0.50],
-          [ 0,   2.2, -9.5, 0.50],
-          [-1.8, 1.7, -7.0, 0.45],
-          [ 1.8, 1.7, -7.0, 0.45],
+          [0,    2.8, -9.5,  0.65],
+          [-1.4, 2.5, -11.0, 0.55],
+          [ 1.4, 2.5, -11.0, 0.55],
+          [-0.6, 2.2, -8.0,  0.50],
+          [ 0.6, 2.2, -8.0,  0.50],
+          [ 0,   3.0, -12.5, 0.50],
+          [-2.2, 2.4, -9.0,  0.45],
+          [ 2.2, 2.4, -9.0,  0.45],
         ];
         const stringMat = new THREE.MeshBasicMaterial({color:0x8b6914});
 
@@ -490,101 +533,105 @@
           m.rotation.y = (Math.random()-0.5)*0.6;
           p.add(m);
 
-          const ceilY = 3.2;
-          const topY  = hangY + h;
+          const ceilY  = 4.2;
+          const topY   = hangY + h;
           const strLen = ceilY - topY;
           if (strLen > 0.05) {
-            const sg = new THREE.CylinderGeometry(0.005, 0.005, strLen, 4);
+            const sg = new THREE.CylinderGeometry(0.006, 0.006, strLen, 4);
             const sm = new THREE.Mesh(sg, stringMat);
             sm.position.set(x, topY + strLen/2, z);
             p.add(sm);
           }
         });
 
-        // String light beads
-        for (let i=0; i<=14; i++) {
-          const t = i/14;
+        // String light beads spanning wider scene
+        for (let i = 0; i <= 16; i++) {
+          const t = i/16;
           const bead = new THREE.Mesh(
-            new THREE.SphereGeometry(0.052,5,5),
+            new THREE.SphereGeometry(0.065, 5, 5),
             new THREE.MeshStandardMaterial({color:0xff9933,emissive:0xff6600,emissiveIntensity:2.8,transparent:true,opacity:0.95})
           );
           bead.position.set(
-            -2.5 + t*5.5,
-            2.1 - Math.sin(t*Math.PI)*0.4,
-            -5.0 - t*0.5
+            -3.5 + t*7.0,
+            2.8 - Math.sin(t*Math.PI)*0.5,
+            -6.5 - t*0.6
           );
           p.add(bead);
         }
       }
 
-      /* ── Lotus path — FIX 2: removed gardenOrbs (path light poles), FIX 1: no cluster near stupa ── */
+      /* Lotus path */
       function lotusPath(p) {
-        // Centre path flowers
-        for (let i=0; i<11; i++) {
+        for (let i = 0; i < 13; i++) {
           const key = i%2===0 ? 'lotus1' : 'lotus2';
-          const h   = 0.18 + Math.random()*0.10;
+          const h   = 0.20 + Math.random()*0.10;
           const m   = getModel(key, h);
-          const sx  = i%2===0 ? -0.62 : 0.62;
-          m.position.set(sx+(Math.random()-0.5)*0.12, 0, -1.5-i*1.05+(Math.random()-0.5)*0.18);
+          const sx  = i%2===0 ? -0.70 : 0.70;
+          m.position.set(sx+(Math.random()-0.5)*0.14, 0, -1.5 - i*1.15 + (Math.random()-0.5)*0.20);
           m.rotation.y = Math.random()*Math.PI*2;
           p.add(m);
         }
 
-        // Side clusters — FIX 1: removed [-4.2,0,-4.0] and [4.2,0,-4.0]
-        // which were near stupa area. Also removed [1.0,0,-5.5] / [-1.0,0,-5.5]
-        // which were overlapping the central path lanterns.
+        // Side clusters — clear of buddha (x=-3.5) and stupa (x=+8)
         [
-          [-1.9,0,-2.5],[1.9,0,-2.5],    // entrance sides
-          [-1.6,0,-8.5],[1.6,0,-8.5],    // far back
-          [-4.0,0,-7.5],[4.0,0,-7.5],    // wide sides, well clear of stupa
-        ].forEach(([x,y,z],idx) => {
+          [-2.2, 0, -3.0], [2.2, 0, -3.0],
+          [-2.0, 0, -11.0],[2.0, 0, -11.0],
+          [-5.0, 0, -9.0], [5.0, 0, -9.0],
+        ].forEach(([x, y, z], idx) => {
           const n = 2 + Math.floor(Math.random()*3);
-          for (let j=0; j<n; j++) {
+          for (let j = 0; j < n; j++) {
             const a = (j/n)*Math.PI*2;
-            const m = getModel(idx%2===0?'lotus1':'lotus2', 0.12+Math.random()*0.07);
-            m.position.set(x+Math.cos(a)*0.35, 0, z+Math.sin(a)*0.35);
+            const m = getModel(idx%2===0 ? 'lotus1' : 'lotus2', 0.14+Math.random()*0.08);
+            m.position.set(x+Math.cos(a)*0.40, 0, z+Math.sin(a)*0.40);
             m.rotation.y = Math.random()*Math.PI*2;
             p.add(m);
           }
         });
       }
 
-      /* ── Lotus lanterns (path-side) — FIX 2: these are NOT light poles, kept as-is ── */
+      /*
+        Lotus lanterns
+        SCALE FIX: 0.36 → 0.50 m — more visible at real-world scale.
+      */
       function lotusLanterns(p) {
         [
-          [-1.3,0,-10],[1.3,0,-10],
-          [-2.6,0,-8.8],[2.6,0,-8.8],
-          [-0.6,0,-11.5],[0.6,0,-11.5],
-          // FIX 2: removed [-3.8,0,-3.2],[3.8,0,-3.2] and [-3.8,0,-6.5],[3.8,0,-6.5]
-          // — these were the tall path-side orb poles flanking the walkway
-          [0,0,-12.5],
-        ].forEach(([x,y,z]) => {
-          const m = getModel('lotusLantern', 0.36);
-          m.position.set(x,y,z);
+          [-1.6, 0, -13.0],[1.6, 0, -13.0],
+          [-3.2, 0, -11.5],[3.2, 0, -11.5],
+          [-0.7, 0, -15.0],[0.7, 0, -15.0],
+          [0,    0, -16.0],
+        ].forEach(([x, y, z]) => {
+          const m = getModel('lotusLantern', 0.50);
+          m.position.set(x, y, z);
           m.rotation.y = Math.random()*Math.PI*2;
           p.add(m);
         });
       }
 
-      /* ── Flying sky lanterns ── */
+      /*
+        Flying sky lanterns
+        SCALE FIX: body SphereGeometry radius 0.21 → 0.30 m
+        — A real sky lantern is ~50–60 cm tall; the old size was too small
+          to read against the larger stupa/buddha in the scene.
+      */
       function flyingLanternGroup(p, count) {
-        for (let i=0; i<count; i++) {
+        for (let i = 0; i < count; i++) {
           const l = mkSkyLantern();
-          l.position.set((Math.random()-0.5)*8, 0.4+Math.random()*0.5, -1-Math.random()*10);
+          l.position.set((Math.random()-0.5)*12, 0.6+Math.random()*0.8, -1-Math.random()*14);
           l.userData = {
             speed : 0.011+Math.random()*0.019,
             driftX: (Math.random()-0.5)*0.0014,
             driftZ: -0.001-Math.random()*0.001,
             phase : Math.random()*Math.PI*2
           };
-          flyingLanterns.push(l); p.add(l);
+          flyingLanterns.push(l);
+          p.add(l);
         }
       }
 
-      // Shared lantern geometry/material (created once)
-      const _lanternBodyGeo = new THREE.SphereGeometry(0.21,8,6);   // FIX SPEED: 10,8 → 8,6
-      const _lanternRingGeo = new THREE.TorusGeometry(0.16,0.022,5,16); // FIX SPEED: 6,20 → 5,16
-      const _lanternFlamGeo = new THREE.ConeGeometry(0.056,0.19,5);  // FIX SPEED: 6 → 5 segments
+      /* Shared lantern geometry — SCALE FIX: all dims ~×1.43 */
+      const _lanternBodyGeo = new THREE.SphereGeometry(0.30, 8, 6);
+      const _lanternRingGeo = new THREE.TorusGeometry(0.23, 0.030, 5, 16);
+      const _lanternFlamGeo = new THREE.ConeGeometry(0.080, 0.27, 5);
       const _lanternBodyMat = new THREE.MeshStandardMaterial({color:0xffeb99,emissive:0xffd36b,emissiveIntensity:1.5,transparent:true,opacity:0.87});
       const _lanternRingMat = new THREE.MeshStandardMaterial({color:0x7a4a2c});
       const _lanternFlamMat = new THREE.MeshStandardMaterial({color:0xffa533,emissive:0xff7700,emissiveIntensity:4});
@@ -592,47 +639,37 @@
       function mkSkyLantern() {
         const g = new THREE.Group();
         const b = new THREE.Mesh(_lanternBodyGeo, _lanternBodyMat);
-        b.scale.set(1,1.38,1); g.add(b);
+        b.scale.set(1, 1.38, 1); g.add(b);
         const r = new THREE.Mesh(_lanternRingGeo, _lanternRingMat);
-        r.rotation.x=Math.PI/2; r.position.y=-0.28; g.add(r);
+        r.rotation.x = Math.PI/2; r.position.y = -0.40; g.add(r);
         const f = new THREE.Mesh(_lanternFlamGeo, _lanternFlamMat);
-        f.position.y=-0.19; f.rotation.x=Math.PI; g.add(f);
+        f.position.y = -0.27; f.rotation.x = Math.PI; g.add(f);
         return g;
       }
 
-      /* ── Fireflies — single Points draw call ── */
-      // FIX SPEED: reduced FF_COUNT 32 → 20
+      /* Fireflies */
       const FF_COUNT = 20;
       function fireflyCloud(p) {
         fireflyPositions = new Float32Array(FF_COUNT * 3);
-        const baseY  = new Float32Array(FF_COUNT);
-        const phases = new Float32Array(FF_COUNT);
-
         for (let i = 0; i < FF_COUNT; i++) {
-          fireflyPositions[i*3]   = (Math.random()-0.5)*9;
-          fireflyPositions[i*3+1] = 0.15 + Math.random()*2.0;
-          fireflyPositions[i*3+2] = -0.5 - Math.random()*11;
-          baseY[i]  = fireflyPositions[i*3+1];
-          phases[i] = Math.random()*Math.PI*2;
+          fireflyPositions[i*3]   = (Math.random()-0.5)*13;
+          fireflyPositions[i*3+1] = 0.20 + Math.random()*3.0;
+          fireflyPositions[i*3+2] = -0.5 - Math.random()*14;
         }
 
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
-        geo.userData = { baseY, phases };
 
         const mat = new THREE.PointsMaterial({
-          color: 0xffe7aa,
-          size: 0.07,
-          transparent: true,
-          opacity: 0.85,
-          sizeAttenuation: true,
+          color: 0xffe7aa, size: 0.09,
+          transparent: true, opacity: 0.85, sizeAttenuation: true,
         });
 
         fireflyPoints = new THREE.Points(geo, mat);
         p.add(fireflyPoints);
       }
 
-      /* ── Animations ── */
+      /* Animations */
       function animLanterns(t) {
         flyingLanterns.forEach(l => {
           l.position.y += l.userData.speed;
@@ -640,17 +677,17 @@
           l.position.z += l.userData.driftZ;
           l.rotation.y += 0.003;
           l.rotation.z  = Math.sin(t*0.001+l.userData.phase)*0.05;
-          if (l.position.y > 14) {
-            l.position.y = 0.5;
-            l.position.x = (Math.random()-0.5)*8;
-            l.position.z = -1-Math.random()*10;
+          if (l.position.y > 18) {
+            l.position.y = 0.6;
+            l.position.x = (Math.random()-0.5)*12;
+            l.position.z = -1-Math.random()*14;
           }
         });
       }
 
       function animLights(t) {
         lightPool.forEach(({ light, phase }) => {
-          light.intensity = 0.52 + 0.30*Math.sin(t*0.006+phase);
+          light.intensity = 0.70 + 0.38*Math.sin(t*0.006+phase);
           light.color.setHSL(0.09, 0.9, 0.50+0.13*Math.sin(t*0.011+phase));
         });
       }
@@ -661,13 +698,13 @@
         for (let i = 0; i < FF_COUNT; i++) {
           pos.array[i*3]   += Math.sin(t*0.0007+i)*0.0006;
           pos.array[i*3+1] += 0.0019;
-          if (pos.array[i*3+1] > 2.7) pos.array[i*3+1] = 0.15;
+          if (pos.array[i*3+1] > 3.5) pos.array[i*3+1] = 0.20;
         }
         pos.needsUpdate = true;
         fireflyPoints.material.opacity = 0.55 + 0.35*Math.abs(Math.sin(t*0.0014));
       }
 
-      /* ── Status helpers ── */
+      /* Status helpers */
       function showStatus(msg){ elStatus.textContent=msg; elStatus.style.display='block'; elStatus.style.opacity='1'; }
       function hideStatus(){ elStatus.style.opacity='0'; setTimeout(()=>elStatus.style.display='none',400); }
       function setRing(pct){
@@ -676,7 +713,6 @@
         elRingFill.style.stroke = `hsl(${pct<50?174:174+(pct-50)*1.8},100%,55%)`;
       }
 
-      /* ── Start ── */
       await preload();
 
     </script>
