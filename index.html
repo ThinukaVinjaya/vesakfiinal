@@ -4,139 +4,217 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>AR Vesak City</title>
-        <style>
-      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap');
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
 
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { overflow:hidden; background:#000; font-family:sans-serif; }
+
+      /* ═══════════════════════════════════════════════════
+         LOADING SCREEN — new design
+      ═══════════════════════════════════════════════════ */
       :root {
         --gold: #ffc84a;
         --gold-dim: #c99520;
         --saffron: #ff9933;
         --ember: #ff6622;
         --deep: #0a0614;
+        --mid: #130d22;
+        --surface: #1c1230;
       }
 
-      * { margin:0; padding:0; box-sizing:border-box; }
-      body { overflow:hidden; background:var(--deep); }
-
-      /* ── Loading screen ── */
       #loading {
-        position:fixed; inset:0; z-index:20;
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        background:var(--deep); overflow:hidden;
+        position: fixed; inset: 0; z-index: 20;
+        background: var(--deep);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Cinzel', serif;
       }
+
+      /* Star field */
       #stars { position:absolute; inset:0; pointer-events:none; }
+
+      /* Sky gradient */
       .sky-wash {
         position:absolute; inset:0;
-        background:radial-gradient(ellipse at 50% 0%, #1a0a2e 0%, #0a0614 60%, #000 100%);
+        background: radial-gradient(ellipse at 50% 0%, #1a0a2e 0%, #0a0614 60%, #000 100%);
         pointer-events:none;
       }
+
+      /* Horizon glow */
       .horizon {
         position:absolute; bottom:0; left:0; right:0; height:200px;
-        background:linear-gradient(to top, #1a0a00 0%, #0a0614 50%, transparent 100%);
+        background: linear-gradient(to top, #1a0a00 0%, #0a0614 50%, transparent 100%);
         pointer-events:none;
       }
-      #lantern-layer { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+
+      /* Flying lanterns SVG layer */
+      #lantern-layer { position:absolute; inset:0; pointer-events:none; }
+
+      /* Ground mandala */
       .mandala {
         position:absolute; bottom:-40px; left:50%; transform:translateX(-50%);
         width:340px; height:180px;
-        background:radial-gradient(ellipse at 50% 100%, rgba(255,180,30,0.07) 0%, transparent 65%);
+        background: radial-gradient(ellipse at 50% 100%, rgba(255,180,30,0.07) 0%, transparent 65%);
         pointer-events:none;
       }
+
+      /* Main content */
       .load-content {
         position:relative; z-index:5;
         display:flex; flex-direction:column; align-items:center;
-        text-align:center; padding:32px 24px;
+        gap:0; text-align:center; padding:32px 24px;
       }
-      .lotus-icon { width:72px; height:72px; margin-bottom:20px; animation:lotus-breathe 3s ease-in-out infinite; }
+
+      /* Lotus bloom SVG */
+      .lotus-icon {
+        width:72px; height:72px; margin-bottom:20px;
+        animation: lotus-breathe 3s ease-in-out infinite;
+      }
+
       @keyframes lotus-breathe {
         0%,100% { transform:scale(1) rotate(0deg); filter:drop-shadow(0 0 8px rgba(255,180,30,0.4)); }
         50%      { transform:scale(1.06) rotate(3deg); filter:drop-shadow(0 0 18px rgba(255,140,0,0.7)); }
       }
-      .load-brand {
-        font-family:'Cinzel',serif; font-size:28px; font-weight:700;
-        letter-spacing:3px; color:var(--gold);
-        margin-bottom:4px; animation:title-glow 3s ease-in-out infinite;
+
+      /* Title */
+      .brand {
+        font-family:'Cinzel', serif;
+        font-size:28px; font-weight:700;
+        letter-spacing:3px;
+        color: var(--gold);
+        text-shadow: 0 0 30px rgba(255,200,74,0.5), 0 0 60px rgba(255,150,0,0.2);
+        margin-bottom:4px;
+        animation: title-glow 3s ease-in-out infinite;
       }
+
       @keyframes title-glow {
-        0%,100% { text-shadow:0 0 20px rgba(255,200,74,0.4); }
-        50%      { text-shadow:0 0 40px rgba(255,200,74,0.8), 0 0 80px rgba(255,100,0,0.3); }
+        0%,100% { text-shadow: 0 0 20px rgba(255,200,74,0.4); }
+        50%      { text-shadow: 0 0 40px rgba(255,200,74,0.8), 0 0 80px rgba(255,100,0,0.3); }
       }
-      .load-brand-sub {
-        font-family:'Crimson Pro',Georgia,serif; font-size:12px; font-weight:300;
-        font-style:italic; letter-spacing:5px; text-transform:uppercase;
-        color:rgba(255,180,60,0.55); margin-bottom:22px;
+
+      .brand-sub {
+        font-family:'Crimson Pro', Georgia, serif;
+        font-size:12px; font-weight:300; font-style:italic;
+        letter-spacing:5px; text-transform:uppercase;
+        color: rgba(255,180,60,0.55);
+        margin-bottom:28px;
       }
-      .load-pali {
-        font-family:'Crimson Pro',Georgia,serif; font-size:14px;
-        font-style:italic; font-weight:300; color:rgba(255,200,100,0.5);
-        margin-bottom:22px; letter-spacing:1px;
+
+      /* Pali blessing */
+      .pali {
+        font-family:'Crimson Pro', Georgia, serif;
+        font-size:14px; font-style:italic; font-weight:300;
+        color:rgba(255,200,100,0.5);
+        margin-bottom:22px;
+        letter-spacing:1px;
       }
-      .load-ornament { display:flex; align-items:center; gap:10px; margin-bottom:22px; opacity:0.4; }
-      .ornament-line { flex:1; height:0.5px; background:linear-gradient(90deg,transparent,var(--gold-dim)); }
-      .ornament-line.r { background:linear-gradient(90deg,var(--gold-dim),transparent); }
+
+      /* Progress system */
+      .prog-wrap { width:220px; margin-bottom:14px; }
+
+      .prog-label {
+        font-family:'Crimson Pro', Georgia, serif;
+        font-size:13px; font-weight:300;
+        color:rgba(255,200,100,0.7);
+        margin-bottom:10px;
+        letter-spacing:0.5px;
+        min-height:18px;
+        transition:opacity 0.3s;
+      }
+
+      .prog-track {
+        height:3px;
+        background:rgba(255,200,80,0.1);
+        border-radius:2px;
+        overflow:hidden;
+        margin-bottom:8px;
+        position:relative;
+      }
+
+      .prog-fill {
+        height:100%;
+        background: linear-gradient(90deg, var(--gold-dim), var(--gold), var(--saffron));
+        border-radius:2px;
+        width:0%;
+        transition:width 0.5s cubic-bezier(0.4,0,0.2,1);
+        position:relative;
+        box-shadow: 0 0 8px rgba(255,180,0,0.6);
+      }
+
+      .prog-fill::after {
+        content:'';
+        position:absolute; right:0; top:-3px;
+        width:6px; height:9px;
+        background: white;
+        border-radius:50%;
+        box-shadow:0 0 10px rgba(255,200,100,0.9);
+        opacity:0.9;
+      }
+
+      /* Dot indicators */
+      .dots {
+        display:flex; gap:8px; justify-content:center; margin-bottom:20px;
+      }
+
+      .dot {
+        width:5px; height:5px; border-radius:50%;
+        background:rgba(255,200,80,0.2);
+        transition:all 0.4s ease;
+      }
+
+      .dot.done { background:var(--gold); box-shadow:0 0 6px rgba(255,180,0,0.8); }
+      .dot.active { background:var(--saffron); box-shadow:0 0 10px rgba(255,120,0,0.9); transform:scale(1.4); }
+
+      /* AR button area */
+      .ar-hint-wrap {
+        margin-top:4px;
+        opacity:0;
+        transform:translateY(10px);
+        transition:opacity 0.6s ease, transform 0.6s ease;
+      }
+
+      .ar-hint-wrap.visible { opacity:1; transform:translateY(0); }
+
+      .hint-text {
+        font-family:'Crimson Pro', Georgia, serif;
+        font-size:12px; font-weight:300; font-style:italic;
+        color:rgba(255,200,100,0.5);
+        margin-top:10px;
+        letter-spacing:0.5px;
+      }
+
+      /* Separator ornament */
+      .ornament {
+        display:flex; align-items:center; gap:10px;
+        margin-bottom:22px; opacity:0.4;
+      }
+      .ornament-line { flex:1; height:0.5px; background:linear-gradient(90deg, transparent, var(--gold-dim)); }
+      .ornament-line.r { background:linear-gradient(90deg, var(--gold-dim), transparent); }
       .ornament-diamond { width:5px; height:5px; background:var(--gold); transform:rotate(45deg); }
 
-      .load-prog-wrap { width:220px; margin-bottom:14px; }
-      #progLabel {
-        font-family:'Crimson Pro',Georgia,serif; font-size:13px; font-weight:300;
-        color:rgba(255,200,100,0.7); margin-bottom:10px; letter-spacing:0.5px;
-        min-height:18px; transition:opacity 0.3s;
-      }
-      .load-prog-track {
-        height:3px; background:rgba(255,200,80,0.1); border-radius:2px;
-        overflow:hidden; margin-bottom:8px; position:relative;
-      }
-      #progFill {
-        height:100%;
-        background:linear-gradient(90deg,var(--gold-dim),var(--gold),var(--saffron));
-        border-radius:2px; width:0%;
-        transition:width 0.5s cubic-bezier(0.4,0,0.2,1);
-        box-shadow:0 0 8px rgba(255,180,0,0.6); position:relative;
-      }
-      #progFill::after {
-        content:''; position:absolute; right:0; top:-3px;
-        width:6px; height:9px; background:white; border-radius:50%;
-        box-shadow:0 0 10px rgba(255,200,100,0.9); opacity:0.9;
-      }
+      /* Error message */
       #errMsg {
-        font-family:'Crimson Pro',Georgia,serif; font-size:12px;
-        color:rgba(255,140,80,0.8); margin-top:8px; display:none; font-style:italic;
+        font-family:'Crimson Pro', Georgia, serif;
+        font-size:12px; color:rgba(255,140,80,0.8);
+        margin-top:8px; display:none; font-style:italic;
       }
-      .load-dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; }
-      .ldot { width:5px; height:5px; border-radius:50%; background:rgba(255,200,80,0.2); transition:all 0.4s ease; }
-      .ldot.done   { background:var(--gold); box-shadow:0 0 6px rgba(255,180,0,0.8); }
-      .ldot.active { background:var(--saffron); box-shadow:0 0 10px rgba(255,120,0,0.9); transform:scale(1.4); }
 
-      #skipBtn {
-        display:none; margin-top:18px; padding:11px 28px;
-        background:transparent; border:1px solid rgba(255,180,60,0.5);
-        color:var(--gold); font-family:'Cinzel',serif; font-size:13px;
-        letter-spacing:2px; border-radius:2px; cursor:pointer;
-        transition:border-color 0.3s, color 0.3s;
-      }
-      #skipBtn:hover { border-color:var(--gold); color:#fff; }
-
-      @keyframes star-twinkle {
-        0%,100% { opacity:0.2; transform:scale(1); }
-        50%      { opacity:0.9; transform:scale(1.5); }
-      }
-      @keyframes lantern-rise {
-        0%   { transform:translateY(0) rotate(0deg); opacity:0.9; }
-        80%  { opacity:0.85; }
-        100% { transform:translateY(-110vh) rotate(8deg); opacity:0; }
-      }
-      @keyframes lantern-sway {
-        0%,100% { transform:translateX(0); }
-        50%      { transform:translateX(var(--sw,8px)); }
-      }
-      /* ── In-AR overlays ── */
+      /* ═══════════════════════════════════════════════════
+         AR HUD elements (shown after loading)
+      ═══════════════════════════════════════════════════ */
       #statusBar {
         position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
         background:rgba(0,0,0,0.65); backdrop-filter:blur(8px);
         color:#fff; font-size:13px; padding:10px 20px; border-radius:24px;
         z-index:6; display:none; text-align:center;
         border:1px solid rgba(255,255,255,0.12); transition:opacity 0.4s;
-        max-width:88vw; white-space:normal; font-family:sans-serif;
+        max-width:88vw; white-space:normal;
       }
       #ringWrap {
         position:fixed; bottom:26%; left:50%; transform:translateX(-50%);
@@ -149,11 +227,12 @@
                   transform:rotate(-90deg); transform-origin:50% 50%;
                   transition:stroke-dashoffset 0.25s ease; }
       #ringPct  { fill:#fff; font-size:18px; font-weight:600; text-anchor:middle; dominant-baseline:central; }
+
       #nightBadge {
         position:fixed; top:14px; right:14px;
         background:rgba(255,180,30,0.18); border:1px solid rgba(255,180,30,0.4);
         color:#ffc84a; font-size:12px; padding:5px 11px; border-radius:14px;
-        z-index:7; display:none; font-family:sans-serif;
+        z-index:7; display:none;
       }
       #placedTick {
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
@@ -163,15 +242,30 @@
         color:#00d484; font-size:32px; z-index:8; pointer-events:none;
         transition:transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.5s; opacity:0;
       }
+
+      /* Lantern & star animations */
+      @keyframes star-twinkle {
+        0%,100% { opacity:0.2; transform:scale(1); }
+        50% { opacity:0.9; transform:scale(1.5); }
+      }
+      @keyframes lantern-rise {
+        0% { transform:translateY(0) rotate(0deg); opacity:0.9; }
+        80% { opacity:0.85; }
+        100% { transform:translateY(-560px) rotate(8deg); opacity:0; }
+      }
+      @keyframes lantern-sway {
+        0%,100% { transform:translateX(0); }
+        50% { transform:translateX(var(--sw,8px)); }
+      }
     </style>
   </head>
   <body>
 
-    <!-- ══ BEAUTIFUL LOADING SCREEN ══ -->
+    <!-- ═══════════════ LOADING SCREEN ═══════════════ -->
     <div id="loading">
       <div class="sky-wash"></div>
       <div id="stars"></div>
-      <svg id="lantern-layer" viewBox="0 0 680 520" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="lantern-layer" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg"></svg>
       <div class="horizon"></div>
       <div class="mandala"></div>
 
@@ -200,92 +294,45 @@
             <ellipse cx="0" cy="-8" rx="6" ry="13" fill="url(#pg1)" opacity="0.9" transform="rotate(30)"/>
             <circle cx="0" cy="-2" r="7" fill="#ffc84a" opacity="0.95"/>
             <circle cx="0" cy="-2" r="4" fill="#ffe8a0" opacity="1"/>
+            <ellipse cx="0" cy="8" rx="14" ry="5" fill="#0d0820" opacity="0.3"/>
           </g>
         </svg>
 
-        <div class="load-brand">AR VESAK CITY</div>
-        <div class="load-brand-sub">Augmented Reality · Vesak 2026</div>
+        <div class="brand">AR VESAK CITY</div>
+        <div class="brand-sub">Augmented Reality · Vesak 2026</div>
 
-        <div class="load-ornament">
+        <div class="ornament">
           <div class="ornament-line"></div>
           <div class="ornament-diamond"></div>
           <div class="ornament-line r"></div>
         </div>
 
-        <div class="load-pali">ශ්‍රද්ධා සම්පන්නං</div>
+        <div class="pali">ශ්‍රද්ධා සම්පන්නං</div>
 
-        <div class="load-prog-wrap">
-          <div id="progLabel">Initialising…</div>
-          <div class="load-prog-track"><div id="progFill"></div></div>
+        <div class="prog-wrap">
+          <div class="prog-label" id="progLabel">Initialising…</div>
+          <div class="prog-track">
+            <div class="prog-fill" id="progFill"></div>
+          </div>
           <div id="errMsg"></div>
         </div>
 
-        <div class="load-dots">
-          <div class="ldot" id="ld0"></div>
-          <div class="ldot" id="ld1"></div>
-          <div class="ldot" id="ld2"></div>
-          <div class="ldot" id="ld3"></div>
-          <div class="ldot" id="ld4"></div>
-          <div class="ldot" id="ld5"></div>
+        <div class="dots" id="dots">
+          <div class="dot" id="d0"></div>
+          <div class="dot" id="d1"></div>
+          <div class="dot" id="d2"></div>
+          <div class="dot" id="d3"></div>
+          <div class="dot" id="d4"></div>
+          <div class="dot" id="d5"></div>
         </div>
 
-        <button id="skipBtn">▶ START WITH BUILT-IN MODELS</button>
+        <div class="ar-hint-wrap" id="arHintWrap">
+          <div class="hint-text">Point your camera at the floor</div>
+        </div>
       </div>
     </div>
 
-    <script>
-    /* ── Star field ── */
-    (function() {
-      const sc = document.getElementById('stars');
-      for (let i=0;i<80;i++) {
-        const s=document.createElement('div');
-        const sz=Math.random()<0.15?2:1;
-        Object.assign(s.style,{
-          position:'absolute', width:sz+'px', height:sz+'px', borderRadius:'50%',
-          background:'white', left:Math.random()*100+'%', top:Math.random()*70+'%',
-          opacity:0.2+Math.random()*0.6,
-          animation:'star-twinkle '+(2+Math.random()*3)+'s '+(Math.random()*3)+'s ease-in-out infinite'
-        });
-        sc.appendChild(s);
-      }
-
-      /* Flying lanterns */
-      const svg = document.getElementById('lantern-layer');
-      const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-      defs.innerHTML = '<filter id="lglow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
-      svg.appendChild(defs);
-
-      const ldata = [
-        {x:100,dur:9,delay:0,sw:'-6px'},{x:200,dur:11,delay:2,sw:'8px'},
-        {x:320,dur:8,delay:1,sw:'5px'}, {x:440,dur:12,delay:3,sw:'-9px'},
-        {x:550,dur:10,delay:0.5,sw:'7px'},{x:580,dur:14,delay:4,sw:'-5px'},
-        {x:80,dur:13,delay:5,sw:'10px'},{x:460,dur:9.5,delay:2.5,sw:'-7px'},
-      ];
-      ldata.forEach(({x,dur,delay,sw}) => {
-        const g=document.createElementNS('http://www.w3.org/2000/svg','g');
-        g.setAttribute('transform','translate('+x+',520)');
-        g.style.animation='lantern-rise '+dur+'s '+delay+'s ease-in infinite';
-        const sw2=document.createElementNS('http://www.w3.org/2000/svg','g');
-        sw2.style.cssText='--sw:'+sw+';animation:lantern-sway '+(3+Math.random()*2)+'s '+(Math.random()*2)+'s ease-in-out infinite';
-        const body=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-        body.setAttribute('cx','0');body.setAttribute('cy','-18');
-        body.setAttribute('rx','10');body.setAttribute('ry','14');
-        body.setAttribute('fill','rgba(255,200,80,0.85)');
-        body.setAttribute('filter','url(#lglow)');
-        const ring=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-        ring.setAttribute('cx','0');ring.setAttribute('cy','-4');
-        ring.setAttribute('rx','10');ring.setAttribute('ry','3');
-        ring.setAttribute('fill','rgba(160,100,30,0.7)');
-        const flame=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-        flame.setAttribute('cx','0');flame.setAttribute('cy','-2');
-        flame.setAttribute('rx','3');flame.setAttribute('ry','4');
-        flame.setAttribute('fill','rgba(255,120,0,0.9)');
-        sw2.appendChild(body);sw2.appendChild(ring);sw2.appendChild(flame);
-        g.appendChild(sw2); svg.appendChild(g);
-      });
-    })();
-    </script>
-
+    <!-- ═══════════════ AR HUD ═══════════════ -->
     <div id="ringWrap">
       <svg viewBox="0 0 100 100">
         <circle id="ringBg"   cx="50" cy="50" r="45"/>
@@ -306,6 +353,75 @@
     }
     </script>
 
+    <!-- Loading screen animations (stars + lanterns) -->
+    <script>
+    (function () {
+      /* Stars */
+      const starContainer = document.getElementById('stars');
+      for (let i = 0; i < 80; i++) {
+        const s = document.createElement('div');
+        const size = Math.random() < 0.15 ? 2 : 1;
+        Object.assign(s.style, {
+          position: 'absolute',
+          width: size + 'px', height: size + 'px',
+          borderRadius: '50%',
+          background: 'white',
+          left: Math.random() * 100 + '%',
+          top: Math.random() * 70 + '%',
+          opacity: 0.2 + Math.random() * 0.6,
+          animation: `star-twinkle ${2 + Math.random() * 3}s ${Math.random() * 3}s ease-in-out infinite`
+        });
+        starContainer.appendChild(s);
+      }
+
+      /* Flying lanterns */
+      const svgLayer = document.getElementById('lantern-layer');
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.innerHTML = `<filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+      svgLayer.insertBefore(defs, svgLayer.firstChild);
+
+      const lanternData = [
+        {x:100, dur:9,  delay:0,   sw:'-6px'},
+        {x:200, dur:11, delay:2,   sw:'8px'},
+        {x:320, dur:8,  delay:1,   sw:'5px'},
+        {x:440, dur:12, delay:3,   sw:'-9px'},
+        {x:550, dur:10, delay:0.5, sw:'7px'},
+        {x:580, dur:14, delay:4,   sw:'-5px'},
+        {x:80,  dur:13, delay:5,   sw:'10px'},
+        {x:460, dur:9.5,delay:2.5, sw:'-7px'},
+      ];
+
+      lanternData.forEach(({ x, dur, delay, sw }) => {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${x},480)`);
+        g.style.cssText = `animation: lantern-rise ${dur}s ${delay}s ease-in infinite;`;
+
+        const swing = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        swing.style.cssText = `--sw:${sw}; animation: lantern-sway ${3 + Math.random() * 2}s ${Math.random() * 2}s ease-in-out infinite;`;
+
+        const body = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        body.setAttribute('cx','0'); body.setAttribute('cy','-18');
+        body.setAttribute('rx','10'); body.setAttribute('ry','14');
+        body.setAttribute('fill','rgba(255,200,80,0.85)');
+        body.setAttribute('filter','url(#glow)');
+
+        const ring = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        ring.setAttribute('cx','0'); ring.setAttribute('cy','-4');
+        ring.setAttribute('rx','10'); ring.setAttribute('ry','3');
+        ring.setAttribute('fill','rgba(160,100,30,0.7)');
+
+        const flame = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        flame.setAttribute('cx','0'); flame.setAttribute('cy','-2');
+        flame.setAttribute('rx','3'); flame.setAttribute('ry','4');
+        flame.setAttribute('fill','rgba(255,120,0,0.9)');
+
+        swing.appendChild(body); swing.appendChild(ring); swing.appendChild(flame);
+        g.appendChild(swing);
+        svgLayer.appendChild(g);
+      });
+    })();
+    </script>
+
     <script type="module">
       import * as THREE   from 'three';
       import { ARButton } from 'three/addons/webxr/ARButton.js';
@@ -317,30 +433,34 @@
       const elProgLabel = document.getElementById('progLabel');
       const elProgFill  = document.getElementById('progFill');
       const elErrMsg    = document.getElementById('errMsg');
-      const elDots      = [0,1,2,3,4,5].map(i=>document.getElementById('ld'+i));
-      const elSkipBtn   = document.getElementById('skipBtn');
-      // Dot animation helper
-      function setDots(active) {
-        elDots.forEach((d,i)=>{
-          d.className='ldot'+(i<active?' done':i===active?' active':'');
-        });
-      }
       const elStatus    = document.getElementById('statusBar');
       const elRing      = document.getElementById('ringWrap');
       const elRingFill  = document.getElementById('ringFill');
       const elRingPct   = document.getElementById('ringPct');
       const elNight     = document.getElementById('nightBadge');
       const elTick      = document.getElementById('placedTick');
+      const elDots      = [0,1,2,3,4,5].map(i => document.getElementById('d'+i));
+      const elArHint    = document.getElementById('arHintWrap');
 
       /* ── R2 model URLs ── */
       const R2 = 'https://pub-7cbad791f95e4c9680981f095fab45e1.r2.dev/';
       const MODELS = [
         { key:'buddha',       url: R2+'stone_buddha_statue.glb', label:'Buddha Statue'   },
-        { key:'lotus1',       url: R2+'lotus1.glb',              label:'Lotus Flower 1'  },
-        { key:'lotus2',       url: R2+'lotus_flower2.glb',       label:'Lotus Flower 2'  },
+        { key:'lotus1',       url: R2+'lotus1.glb',              label:'Lotus Flowers'   },
+        { key:'lotus2',       url: R2+'lotus_flower2.glb',       label:'Lotus Flowers'   },
         { key:'lotusLantern', url: R2+'lotus_lanttern.glb',      label:'Lotus Lantern'   },
-        { key:'vesakLantern', url: R2+'vesak_lanterns.glb',      label:'Vesak Lantern'   },
+        { key:'vesakLantern', url: R2+'vesak_lanterns.glb',      label:'Vesak Lanterns'  },
         { key:'stupa',        url: R2+'sthupa_srilanka.glb',     label:'Sri Lanka Stupa' },
+      ];
+
+      // Label shown in the dot-step progress (matches MODELS order)
+      const stepLabels = [
+        'Loading Buddha Statue…',
+        'Loading Lotus Flowers…',
+        'Loading Lotus Flowers…',
+        'Loading Lotus Lantern…',
+        'Loading Vesak Lanterns…',
+        'Loading Sri Lanka Stupa…',
       ];
 
       /* ── GLTF / DRACO loader ── */
@@ -351,266 +471,79 @@
 
       const cache = {};
 
-      /* ── Parallel model loading with per-model timeout ── */
-      const MODEL_TIMEOUT_MS = 8000; // give each model 8s max
-
-      function loadWithTimeout(key, url, label) {
-        return new Promise(resolve => {
-          let settled = false;
-          const done = () => { if (!settled) { settled = true; resolve(); } };
-
-          const timer = setTimeout(() => {
-            console.warn(`Timeout loading: ${key}`);
-            cache[key] = null;
-            elErrMsg.style.display = 'block';
-            elErrMsg.textContent   = `⚠️ "${label}" timed out — using built-in model.`;
-            done();
-          }, MODEL_TIMEOUT_MS);
-
-          gltfLoader.load(
-            url,
-            result => {
-              clearTimeout(timer);
-              cache[key] = result.scene;
-              cache[key].traverse(n => {
-                if (n.isMesh) {
-                  n.castShadow = n.receiveShadow = true;
-                  if (n.material) {
-                    n.material.needsUpdate = true;
-                    if (n.material.roughness !== undefined)
-                      n.material.roughness = Math.min(n.material.roughness + 0.05, 1.0);
-                  }
-                }
-              });
-              done();
-            },
-            xhr => {
-              // progress — reset timeout on each chunk received
-              clearTimeout(timer);
-            },
-            err => {
-              clearTimeout(timer);
-              console.warn(`Error loading ${key}:`, err);
-              cache[key] = null;
-              elErrMsg.style.display = 'block';
-              elErrMsg.textContent   = `⚠️ "${label}" failed — using built-in model.`;
-              done();
-            }
-          );
+      /* ── Update dot-step UI ── */
+      function updateDots(completedCount) {
+        elDots.forEach((d, i) => {
+          if (i < completedCount)       d.className = 'dot done';
+          else if (i === completedCount) d.className = 'dot active';
+          else                           d.className = 'dot';
         });
       }
 
+      /* ── Parallel model loading ── */
       async function preload() {
         let done = 0;
         const total = MODELS.length;
+        draco.preload();
+        updateDots(0);
+        elProgLabel.textContent = stepLabels[0];
 
-        // Show skip button after 5s
-        const skipTimer = setTimeout(() => {
-          if (elLoading.style.display === 'none') return;
-          elSkipBtn.style.display = 'block';
-          elSkipBtn.onclick = () => finishLoading();
-        }, 5000);
-
-        try { draco.preload(); } catch(e) { console.warn('Draco preload failed:', e); }
-
-        const jobs = MODELS.map(({ key, url, label }) =>
-          loadWithTimeout(key, url, label).then(() => {
-            done++;
-            setDots(done - 1);
-            elProgLabel.textContent = cache[key] ? `Loading ${label}…` : `⚠ ${label} — using built-in`;
-            elProgFill.style.width  = `${(done / total) * 100}%`;
+        const jobs = MODELS.map(({ key, url, label }, idx) =>
+          new Promise(resolve => {
+            gltfLoader.load(
+              url,
+              result => {
+                cache[key] = result.scene;
+                cache[key].traverse(n => {
+                  if (n.isMesh) {
+                    n.castShadow    = true;
+                    n.receiveShadow = true;
+                    if (n.material) n.material.needsUpdate = false;
+                  }
+                });
+                done++;
+                elProgLabel.textContent = done < total ? stepLabels[done] : '✦ Models loaded';
+                elProgFill.style.width  = `${(done/total)*100}%`;
+                updateDots(done);
+                resolve();
+              },
+              undefined,
+              () => {
+                console.warn(`Failed to load: ${key}`);
+                cache[key] = null;
+                done++;
+                elProgFill.style.width  = `${(done/total)*100}%`;
+                elErrMsg.style.display  = 'block';
+                elErrMsg.textContent    = `⚠️ "${label}" failed — using placeholder.`;
+                updateDots(done);
+                resolve();
+              }
+            );
           })
         );
 
         await Promise.all(jobs);
-        clearTimeout(skipTimer);
-        finishLoading();
-      }
 
-      function finishLoading() {
         elProgFill.style.width  = '100%';
-        elProgLabel.textContent = '✅ Ready!';
-          // Remove skip button if it exists
-        const btn = elLoading.querySelector('button');
-        if (btn) btn.remove();
-        setTimeout(() => elLoading.style.display = 'none', 600);
+        elProgLabel.textContent = '✦ Models loaded';
+        elDots.forEach(d => d.className = 'dot done');
+        setTimeout(() => elArHint.classList.add('visible'), 400);
+        setTimeout(() => elLoading.style.display = 'none', 1200);
       }
 
-      /* ── Fallback geometries — ENHANCED REALISM ── */
+      /* ── Fallback geometries (created once, shared) ── */
       const _fbGeo = {};
       const _fbMat = {};
-
-      function buildDetailedBuddhaFallback() {
-        const g = new THREE.Group();
-        // Lotus throne base — tiered platform
-        const tierMat = new THREE.MeshStandardMaterial({color:0xd4aa50, roughness:0.45, metalness:0.35});
-        [
-          {r:0.72, h:0.18, y:0.00},
-          {r:0.60, h:0.22, y:0.18},
-          {r:0.50, h:0.18, y:0.40},
-        ].forEach(({r,h,y}) => {
-          const t = new THREE.Mesh(new THREE.CylinderGeometry(r,r+0.06,h,24), tierMat);
-          t.position.y = y + h/2; g.add(t);
-        });
-        // Lotus petals ring
-        const petalMat = new THREE.MeshStandardMaterial({color:0xff8cb5,roughness:0.5,metalness:0.1});
-        for (let i=0;i<16;i++) {
-          const a = (i/16)*Math.PI*2;
-          const pet = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,6), petalMat);
-          pet.position.set(Math.cos(a)*0.62, 0.52, Math.sin(a)*0.62);
-          pet.scale.set(1,1.6,0.7); g.add(pet);
-        }
-        // Body (robes) — wider, more draped shape
-        const robeMat = new THREE.MeshStandardMaterial({color:0xffa030, roughness:0.78, metalness:0.0});
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.46,0.95,14), robeMat);
-        body.position.y = 1.05; g.add(body);
-        // Lap/lower robe
-        const lap = new THREE.Mesh(new THREE.CylinderGeometry(0.44,0.38,0.30,14), robeMat);
-        lap.position.y = 0.73; g.add(lap);
-        // Neck
-        const skinMat = new THREE.MeshStandardMaterial({color:0xd4a96a, roughness:0.6, metalness:0.0});
-        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.15,0.18,10), skinMat);
-        neck.position.y = 1.58; g.add(neck);
-        // Head — elongated, serene
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25,14,12), skinMat);
-        head.position.y = 1.88; head.scale.set(1,1.22,0.98); g.add(head);
-        // Ushnisha (cranial protuberance)
-        const ushnMat = new THREE.MeshStandardMaterial({color:0x2255aa, roughness:0.6, metalness:0.1});
-        const ushn = new THREE.Mesh(new THREE.SphereGeometry(0.13,10,10), ushnMat);
-        ushn.position.y = 2.16; g.add(ushn);
-        // Curly hair dots
-        const hairMat = new THREE.MeshStandardMaterial({color:0x1a3d7a, roughness:0.7});
-        for (let i=0;i<20;i++) {
-          const phi = Math.random()*Math.PI*0.55;
-          const tht = Math.random()*Math.PI*2;
-          const hd = new THREE.Mesh(new THREE.SphereGeometry(0.028,4,4), hairMat);
-          hd.position.set(
-            Math.sin(phi)*Math.cos(tht)*0.24,
-            1.88 + Math.cos(phi)*0.24*1.22,
-            Math.sin(phi)*Math.sin(tht)*0.24
-          );
-          g.add(hd);
-        }
-        // Face details — eyes, urna
-        const eyeMat = new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.3});
-        [-0.09,0.09].forEach(ex => {
-          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028,6,6), eyeMat);
-          eye.position.set(ex, 1.87, 0.22); g.add(eye);
-        });
-        const urnaMat = new THREE.MeshStandardMaterial({color:0xffd700,emissive:0xffaa00,emissiveIntensity:1.5,metalness:0.8,roughness:0.2});
-        const urna = new THREE.Mesh(new THREE.SphereGeometry(0.025,6,6), urnaMat);
-        urna.position.set(0,1.90,0.23); g.add(urna);
-        // Right hand — mudra gesture (blessing hand)
-        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.08,8,6), skinMat);
-        hand.position.set(0.25,1.18,0.22); hand.scale.set(0.8,1.1,0.6); g.add(hand);
-        // Left hand in lap
-        const lhand = new THREE.Mesh(new THREE.SphereGeometry(0.08,8,6), skinMat);
-        lhand.position.set(-0.08,0.90,0.28); lhand.scale.set(1.2,0.6,0.8); g.add(lhand);
-        return g;
-      }
-
-      function buildDetailedStupaFallback() {
-        const g = new THREE.Group();
-        const stoneMat = new THREE.MeshStandardMaterial({
-          color:0xf5f0e8, roughness:0.82, metalness:0.05,
-        });
-        const goldMat = new THREE.MeshStandardMaterial({
-          color:0xffd700, roughness:0.25, metalness:0.85,
-          emissive:0xffaa00, emissiveIntensity:0.15,
-        });
-        const redMat  = new THREE.MeshStandardMaterial({color:0xcc2200, roughness:0.65});
-
-        // ─── Outer terrace / boundary wall
-        const outerWall = new THREE.Mesh(new THREE.CylinderGeometry(1.55,1.65,0.22,32), stoneMat);
-        outerWall.position.y=0.11; g.add(outerWall);
-
-        // ─── Stair-step podium (3 receding tiers)
-        const tiers = [
-          {r:1.32, h:0.24, y:0.22},
-          {r:1.10, h:0.26, y:0.46},
-          {r:0.90, h:0.26, y:0.72},
-        ];
-        tiers.forEach(({r,h,y}) => {
-          const t = new THREE.Mesh(new THREE.CylinderGeometry(r,r+0.08,h,32), stoneMat);
-          t.position.y = y+h/2; g.add(t);
-          // Gold band on each tier
-          const band = new THREE.Mesh(new THREE.TorusGeometry(r,0.022,6,32), goldMat);
-          band.rotation.x=Math.PI/2; band.position.y=y+h; g.add(band);
-        });
-
-        // ─── Anda (hemispherical dome) — main body
-        const anda = new THREE.Mesh(new THREE.SphereGeometry(0.88,32,18,0,Math.PI*2,0,Math.PI/2), stoneMat);
-        anda.position.y=0.98; g.add(anda);
-        // White plaster finish (slightly different shade for detail)
-        const andaDetail = new THREE.Mesh(new THREE.SphereGeometry(0.86,32,18,0,Math.PI*2,0,Math.PI*0.48),
-          new THREE.MeshStandardMaterial({color:0xfaf6ef,roughness:0.72,metalness:0.02}));
-        andaDetail.position.y=1.00; g.add(andaDetail);
-
-        // ─── Gold equatorial band
-        const eqBand = new THREE.Mesh(new THREE.TorusGeometry(0.88,0.042,8,40), goldMat);
-        eqBand.rotation.x=Math.PI/2; eqBand.position.y=0.98; g.add(eqBand);
-
-        // ─── Harmika (square relic chamber platform)
-        const harmika = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.28,0.42), stoneMat);
-        harmika.position.y=1.86; g.add(harmika);
-        // Gold trim on harmika
-        const harmGold = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.04,0.46),goldMat);
-        harmGold.position.y=2.00; g.add(harmGold);
-
-        // ─── Yasti (central spire shaft)
-        const yastiMat = new THREE.MeshStandardMaterial({color:0xc8a800,roughness:0.2,metalness:0.9,emissive:0xffbb00,emissiveIntensity:0.12});
-        const yasti = new THREE.Mesh(new THREE.CylinderGeometry(0.040,0.055,1.65,10), yastiMat);
-        yasti.position.y=2.95; g.add(yasti);
-
-        // ─── Chattra rings (7 honour discs descending in size)
-        const chattraR = [0.28,0.24,0.21,0.18,0.155,0.13,0.108];
-        chattraR.forEach((r,i) => {
-          const disc = new THREE.Mesh(new THREE.TorusGeometry(r,0.028,7,28), goldMat);
-          disc.rotation.x=Math.PI/2; disc.position.y=2.26+i*0.22; g.add(disc);
-        });
-
-        // ─── Pinnacle orb (final jewel)
-        const pinnacle = new THREE.Mesh(new THREE.SphereGeometry(0.085,12,10),
-          new THREE.MeshStandardMaterial({color:0xffee44,roughness:0.1,metalness:1.0,emissive:0xffcc00,emissiveIntensity:0.5}));
-        pinnacle.position.y=3.78; g.add(pinnacle);
-        // Flame finial above
-        const flame = new THREE.Mesh(new THREE.ConeGeometry(0.048,0.22,8),
-          new THREE.MeshStandardMaterial({color:0xffd700,roughness:0.15,metalness:0.8,emissive:0xffaa00,emissiveIntensity:0.8}));
-        flame.position.y=3.96; g.add(flame);
-
-        // ─── 4 Cardinal Lamp Posts (corner lamp niches)
-        const lampMat = new THREE.MeshStandardMaterial({color:0xffcc55,emissive:0xff8800,emissiveIntensity:2.5,transparent:true,opacity:0.9});
-        const postMat = new THREE.MeshStandardMaterial({color:0xd4a850,roughness:0.5,metalness:0.4});
-        [[1.15,0,0],[-1.15,0,0],[0,0,1.15],[0,0,-1.15]].forEach(([px,py,pz]) => {
-          // pillar
-          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.042,0.055,1.15,8),postMat);
-          post.position.set(px,0.58+py,pz); g.add(post);
-          // lamp globe
-          const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.072,8,8),lampMat);
-          lamp.position.set(px,1.18+py,pz); g.add(lamp);
-        });
-
-        // ─── Decorative wall niches / arched panels (8 around base)
-        const archMat = new THREE.MeshStandardMaterial({color:0xe8e0d0,roughness:0.85,metalness:0.0});
-        for (let i=0;i<8;i++) {
-          const a=(i/8)*Math.PI*2;
-          const arch=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.32,0.03),archMat);
-          arch.position.set(Math.cos(a)*1.04,0.64,Math.sin(a)*1.04);
-          arch.rotation.y=-a; g.add(arch);
-        }
-
-        return g;
-      }
-
       function getFallback(key) {
-        if (key==='buddha') return buildDetailedBuddhaFallback();
-        if (key==='stupa')  return buildDetailedStupaFallback();
-
         if (!_fbGeo[key]) {
+          _fbGeo.buddha       = new THREE.CylinderGeometry(0.2,0.3,1,8);
+          _fbGeo.stupa        = new THREE.ConeGeometry(0.4,1.8,8);
           _fbGeo.lotus1       = new THREE.SphereGeometry(0.1,6,6);
           _fbGeo.lotus2       = new THREE.SphereGeometry(0.1,6,6);
           _fbGeo.lotusLantern = new THREE.SphereGeometry(0.12,6,6);
           _fbGeo.vesakLantern = new THREE.BoxGeometry(0.2,0.3,0.1);
+          _fbMat.buddha       = new THREE.MeshStandardMaterial({color:0xf3e5ab});
+          _fbMat.stupa        = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4});
           _fbMat.lotus1       = new THREE.MeshStandardMaterial({color:0xff7fbf});
           _fbMat.lotus2       = new THREE.MeshStandardMaterial({color:0xff99cc});
           _fbMat.lotusLantern = new THREE.MeshStandardMaterial({color:0xffaa55,emissive:0xff8800,emissiveIntensity:1});
@@ -648,8 +581,6 @@
       renderer.xr.enabled        = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
-      renderer.toneMapping       = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
 
       Object.assign(renderer.domElement.style, {
         position:'fixed', top:'0', left:'0', width:'100%', height:'100%', zIndex:'1'
@@ -659,45 +590,16 @@
       const scene  = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 60);
 
-      /* ── Lights — ENHANCED for realism ── */
+      /* ── Lights ── */
       scene.add(new THREE.HemisphereLight(0xffe4b5, 0x664422, 1.3));
-
-      // Main sun — casts hard shadows on stupa & statue
-      const sun = new THREE.DirectionalLight(0xfff8e0, 1.2);
+      const sun = new THREE.DirectionalLight(0xfff8e0, 0.9);
       sun.position.set(4, 10, 5);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024); // Higher res shadows for large objects
-      sun.shadow.camera.near = 0.1;
-      sun.shadow.camera.far  = 30;
-      sun.shadow.camera.left   = -8;
-      sun.shadow.camera.right  =  8;
-      sun.shadow.camera.top    =  8;
-      sun.shadow.camera.bottom = -8;
-      sun.shadow.bias = -0.001;
+      sun.shadow.mapSize.set(512, 512);
+      sun.shadow.camera.near = 0.5;
+      sun.shadow.camera.far  = 25;
       scene.add(sun);
-
-      // Fill light from opposite side
-      const fillLight = new THREE.DirectionalLight(0xb0d0ff, 0.35);
-      fillLight.position.set(-5, 6, -3);
-      scene.add(fillLight);
-
-      scene.add(new THREE.AmbientLight(0xffd580, 0.45));
-
-      // Dedicated stupa spot — golden glow from below
-      const stupaSpot = new THREE.SpotLight(0xffd080, 1.8, 18, Math.PI/5, 0.5, 1.2);
-      stupaSpot.position.set(5.5, 5.0, -5.5);
-      stupaSpot.target.position.set(5.5, 0, -5.5);
-      stupaSpot.castShadow = false;
-      scene.add(stupaSpot);
-      scene.add(stupaSpot.target);
-
-      // Dedicated buddha spot
-      const buddhaSpot = new THREE.SpotLight(0xffeebb, 1.4, 14, Math.PI/6, 0.4, 1.2);
-      buddhaSpot.position.set(-2.5, 5.5, -4.0);
-      buddhaSpot.target.position.set(-2.5, 0, -5.0);
-      buddhaSpot.castShadow = false;
-      scene.add(buddhaSpot);
-      scene.add(buddhaSpot.target);
+      scene.add(new THREE.AmbientLight(0xffd580, 0.5));
 
       /* ── PointLight pool ── */
       const POOL_SIZE = 6;
@@ -880,10 +782,10 @@
       /* ── Floor mandala ── */
       function floorDeco(p) {
         p.add(new THREE.Mesh(
-          new THREE.CircleGeometry(7.0,64).rotateX(-Math.PI/2),
-          new THREE.MeshBasicMaterial({color:0xffd580,transparent:true,opacity:0.05,side:THREE.DoubleSide})
+          new THREE.CircleGeometry(5.5,64).rotateX(-Math.PI/2),
+          new THREE.MeshBasicMaterial({color:0xffd580,transparent:true,opacity:0.04,side:THREE.DoubleSide})
         ));
-        [1.2,2.3,3.5,4.7,5.9,7.0].forEach(r => {
+        [1.2,2.3,3.5,4.7].forEach(r => {
           p.add(new THREE.Mesh(
             new THREE.RingGeometry(r,r+0.025,64).rotateX(-Math.PI/2),
             new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:0.09,side:THREE.DoubleSide})
@@ -891,142 +793,32 @@
         });
       }
 
-      /* ── Buddha statue — LARGE & REALISTIC ── */
+      /* ── Buddha statue ── */
       function buddhaStatue(p) {
-        // TARGET HEIGHT: 3.8m — commanding, life-size presence
-        const m = getModel('buddha', 3.8);
-        m.position.set(-2.8, 0, -6.0);
+        const m = getModel('buddha', 1.9);
+        m.position.set(-2.5, 0, -5);
         m.rotation.y = 0.22;
         p.add(m);
 
-        // Large, prominent golden halo
         const halo = new THREE.Mesh(
-          new THREE.RingGeometry(0.90, 1.12, 56),
-          new THREE.MeshBasicMaterial({color:0xffe070,transparent:true,opacity:0.72,side:THREE.DoubleSide})
+          new THREE.RingGeometry(0.58,0.72,40),
+          new THREE.MeshBasicMaterial({color:0xffe070,transparent:true,opacity:0.65,side:THREE.DoubleSide})
         );
-        halo.position.set(0, 3.35, -0.10);
-        halo.rotation.x = -0.12;
+        halo.position.set(0, 2.15, -0.08); halo.rotation.x = -0.15;
         m.add(halo);
 
-        // Outer halo ring glow
-        const haloGlow = new THREE.Mesh(
-          new THREE.RingGeometry(1.12, 1.45, 56),
-          new THREE.MeshBasicMaterial({color:0xffd030,transparent:true,opacity:0.28,side:THREE.DoubleSide})
-        );
-        haloGlow.position.set(0, 3.35, -0.12);
-        m.add(haloGlow);
-
-        // Ray spokes from halo (8 rays)
-        for (let i=0;i<8;i++) {
-          const a = (i/8)*Math.PI*2;
-          const ray = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.035,0.65),
-            new THREE.MeshBasicMaterial({color:0xffee80,transparent:true,opacity:0.22,side:THREE.DoubleSide})
-          );
-          ray.position.set(Math.cos(a)*1.3, 3.35+Math.sin(a)*1.3, -0.11);
-          ray.rotation.z = a;
-          m.add(ray);
-        }
-
-        // Incense smoke orb at base
-        const inc = new THREE.Mesh(new THREE.SphereGeometry(0.08,6,6),
+        const inc = new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),
           new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.9}));
-        inc.position.set(-2.8, 0.65, -5.5); p.add(inc);
-
-        // Elevated stone pedestal for the statue
-        buildBuddhaPedestal(p, -2.8, 0, -6.0);
+        inc.position.set(-2.5, 0.65, -4.6); p.add(inc);
       }
 
-      function buildBuddhaPedestal(p, x, y, z) {
-        const stoneMat = new THREE.MeshStandardMaterial({color:0x8a7a6a,roughness:0.88,metalness:0.05});
-        const goldMat  = new THREE.MeshStandardMaterial({color:0xd4a830,roughness:0.3,metalness:0.7});
-        // 3-tier stone base
-        [
-          {w:2.0,h:0.22,d:2.0, y:0.11},
-          {w:1.7,h:0.20,d:1.7, y:0.33},
-          {w:1.4,h:0.18,d:1.4, y:0.52},
-        ].forEach(({w,h,d,y:ty}) => {
-          const t = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), stoneMat);
-          t.position.set(x,ty,z); t.receiveShadow=true; t.castShadow=true; p.add(t);
-        });
-        // Gold trim top
-        const trim = new THREE.Mesh(new THREE.BoxGeometry(1.45,0.035,1.45),goldMat);
-        trim.position.set(x,0.715,z); p.add(trim);
-      }
-
-      /* ── Stupa — LARGE & HIGHLY DETAILED ── */
+      /* ── Stupa ── */
       function stupaRight(p) {
-        const STUPA_X = 6.2, STUPA_Z = -6.2;
-        // TARGET HEIGHT: 4.5m — towering, dominant landmark
-        const m = getModel('stupa', 4.5);
+        const STUPA_X = 5.5, STUPA_Z = -5.5;
+        const m = getModel('stupa', 2.4);
         m.position.set(STUPA_X, 0, STUPA_Z);
         m.rotation.y = -0.18;
         p.add(m);
-
-        // ── Surrounding terrace / courtyard
-        buildStupaCourtyard(p, STUPA_X, STUPA_Z);
-
-        // ── 4 Tall lamp posts at cardinal points
-        const lampMat = new THREE.MeshStandardMaterial({color:0xffcc55,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.92});
-        const postMat = new THREE.MeshStandardMaterial({color:0xc8a030,roughness:0.35,metalness:0.75});
-        const LAMP_OFFSETS = [[1.8,0,0],[-1.8,0,0],[0,0,1.8],[0,0,-1.8]];
-        LAMP_OFFSETS.forEach(([ox,oy,oz]) => {
-          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.075,2.2,8), postMat);
-          post.position.set(STUPA_X+ox, 1.1, STUPA_Z+oz);
-          post.castShadow=true; p.add(post);
-          // Finial top on post
-          const fin = new THREE.Mesh(new THREE.ConeGeometry(0.06,0.22,6), postMat);
-          fin.position.set(STUPA_X+ox, 2.32, STUPA_Z+oz);
-          p.add(fin);
-          // Lamp globe
-          const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.10,10,10), lampMat);
-          lamp.position.set(STUPA_X+ox, 2.20, STUPA_Z+oz); p.add(lamp);
-          // Point light from lamp
-          const pl = new THREE.PointLight(0xff9922, 0.6, 3.5);
-          pl.position.set(STUPA_X+ox, 2.2, STUPA_Z+oz); p.add(pl);
-        });
-
-        // ── 8 smaller lotus flowers around base
-        for (let i=0;i<8;i++) {
-          const a = (i/8)*Math.PI*2;
-          const lo = getModel(i%2===0?'lotus1':'lotus2', 0.18+Math.random()*0.06);
-          lo.position.set(STUPA_X+Math.cos(a)*2.2, 0, STUPA_Z+Math.sin(a)*2.2);
-          lo.rotation.y = Math.random()*Math.PI*2;
-          p.add(lo);
-        }
-      }
-
-      function buildStupaCourtyard(p, cx, cz) {
-        const stoneMat = new THREE.MeshStandardMaterial({color:0xd8cfc0,roughness:0.88,metalness:0.04});
-        // Circular courtyard floor
-        const court = new THREE.Mesh(
-          new THREE.CircleGeometry(3.2,40).rotateX(-Math.PI/2),
-          new THREE.MeshStandardMaterial({color:0xd0c8b8,roughness:0.92,metalness:0.02})
-        );
-        court.position.set(cx,0.01,cz);
-        court.receiveShadow=true; p.add(court);
-        // Low boundary wall ring
-        const wall = new THREE.Mesh(
-          new THREE.TorusGeometry(3.1,0.095,6,48),
-          stoneMat
-        );
-        wall.rotation.x=Math.PI/2; wall.position.set(cx,0.1,cz);
-        p.add(wall);
-        // 4 gateway pillars
-        const gateAngles = [0, Math.PI/2, Math.PI, Math.PI*1.5];
-        const pilMat = new THREE.MeshStandardMaterial({color:0xc0b090,roughness:0.75,metalness:0.08});
-        gateAngles.forEach(a => {
-          const px=cx+Math.cos(a)*3.1, pz=cz+Math.sin(a)*3.1;
-          [-0.22,0.22].forEach(off => {
-            const pil = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.72,0.14),pilMat);
-            pil.position.set(px+Math.cos(a+Math.PI/2)*off, 0.36, pz+Math.sin(a+Math.PI/2)*off);
-            pil.castShadow=true; p.add(pil);
-            // Cap
-            const cap = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.08,0.18),pilMat);
-            cap.position.set(px+Math.cos(a+Math.PI/2)*off, 0.76, pz+Math.sin(a+Math.PI/2)*off);
-            p.add(cap);
-          });
-        });
       }
 
       /* ── Vesak lantern cluster ── */
@@ -1060,7 +852,6 @@
           }
         });
 
-        // String light beads
         for (let i=0; i<=14; i++) {
           const t = i/14;
           const bead = new THREE.Mesh(
@@ -1104,7 +895,7 @@
         });
       }
 
-      /* ── Lotus lanterns ── */
+      /* ── Lotus lanterns (path-side) ── */
       function lotusLanterns(p) {
         [
           [-1.3,0,-10],[1.3,0,-10],
@@ -1204,8 +995,6 @@
           light.intensity = 0.52 + 0.30*Math.sin(t*0.006+phase);
           light.color.setHSL(0.09, 0.9, 0.50+0.13*Math.sin(t*0.011+phase));
         });
-        // Pulse the stupa spot slightly for dramatic effect
-        stupaSpot.intensity = 1.6 + 0.4*Math.sin(t*0.003);
       }
 
       function animFireflies(t) {
