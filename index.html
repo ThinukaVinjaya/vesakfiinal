@@ -1,35 +1,142 @@
-
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>AR Vesak City</title>
-    <style>
-      * { margin:0; padding:0; box-sizing:border-box; }
-      body { overflow:hidden; background:#000; font-family:sans-serif; }
+        <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap');
 
-      #loading {
-        position:fixed; inset:0;
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        background:#000; color:#fff; z-index:20; gap:16px; text-align:center; padding:32px;
+      :root {
+        --gold: #ffc84a;
+        --gold-dim: #c99520;
+        --saffron: #ff9933;
+        --ember: #ff6622;
+        --deep: #0a0614;
       }
-      .title { font-size:26px; font-weight:bold; color:#ffd580; letter-spacing:1px; }
-      .sub   { font-size:14px; color:#bbb; line-height:1.8; }
 
-      #progressWrap { width:240px; }
-      #progLabel { font-size:13px; color:#ffd580; margin-bottom:8px; }
-      #progTrack { background:rgba(255,255,255,0.12); border-radius:8px; height:7px; overflow:hidden; }
-      #progFill  { height:100%; background:linear-gradient(90deg,#ffd580,#ff9933); border-radius:8px; width:0%; transition:width 0.3s; }
-      #errMsg    { color:#ff9966; font-size:12px; margin-top:8px; display:none; line-height:1.5; }
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { overflow:hidden; background:var(--deep); }
 
+      /* ── Loading screen ── */
+      #loading {
+        position:fixed; inset:0; z-index:20;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        background:var(--deep); overflow:hidden;
+      }
+      #stars { position:absolute; inset:0; pointer-events:none; }
+      .sky-wash {
+        position:absolute; inset:0;
+        background:radial-gradient(ellipse at 50% 0%, #1a0a2e 0%, #0a0614 60%, #000 100%);
+        pointer-events:none;
+      }
+      .horizon {
+        position:absolute; bottom:0; left:0; right:0; height:200px;
+        background:linear-gradient(to top, #1a0a00 0%, #0a0614 50%, transparent 100%);
+        pointer-events:none;
+      }
+      #lantern-layer { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+      .mandala {
+        position:absolute; bottom:-40px; left:50%; transform:translateX(-50%);
+        width:340px; height:180px;
+        background:radial-gradient(ellipse at 50% 100%, rgba(255,180,30,0.07) 0%, transparent 65%);
+        pointer-events:none;
+      }
+      .load-content {
+        position:relative; z-index:5;
+        display:flex; flex-direction:column; align-items:center;
+        text-align:center; padding:32px 24px;
+      }
+      .lotus-icon { width:72px; height:72px; margin-bottom:20px; animation:lotus-breathe 3s ease-in-out infinite; }
+      @keyframes lotus-breathe {
+        0%,100% { transform:scale(1) rotate(0deg); filter:drop-shadow(0 0 8px rgba(255,180,30,0.4)); }
+        50%      { transform:scale(1.06) rotate(3deg); filter:drop-shadow(0 0 18px rgba(255,140,0,0.7)); }
+      }
+      .load-brand {
+        font-family:'Cinzel',serif; font-size:28px; font-weight:700;
+        letter-spacing:3px; color:var(--gold);
+        margin-bottom:4px; animation:title-glow 3s ease-in-out infinite;
+      }
+      @keyframes title-glow {
+        0%,100% { text-shadow:0 0 20px rgba(255,200,74,0.4); }
+        50%      { text-shadow:0 0 40px rgba(255,200,74,0.8), 0 0 80px rgba(255,100,0,0.3); }
+      }
+      .load-brand-sub {
+        font-family:'Crimson Pro',Georgia,serif; font-size:12px; font-weight:300;
+        font-style:italic; letter-spacing:5px; text-transform:uppercase;
+        color:rgba(255,180,60,0.55); margin-bottom:22px;
+      }
+      .load-pali {
+        font-family:'Crimson Pro',Georgia,serif; font-size:14px;
+        font-style:italic; font-weight:300; color:rgba(255,200,100,0.5);
+        margin-bottom:22px; letter-spacing:1px;
+      }
+      .load-ornament { display:flex; align-items:center; gap:10px; margin-bottom:22px; opacity:0.4; }
+      .ornament-line { flex:1; height:0.5px; background:linear-gradient(90deg,transparent,var(--gold-dim)); }
+      .ornament-line.r { background:linear-gradient(90deg,var(--gold-dim),transparent); }
+      .ornament-diamond { width:5px; height:5px; background:var(--gold); transform:rotate(45deg); }
+
+      .load-prog-wrap { width:220px; margin-bottom:14px; }
+      #progLabel {
+        font-family:'Crimson Pro',Georgia,serif; font-size:13px; font-weight:300;
+        color:rgba(255,200,100,0.7); margin-bottom:10px; letter-spacing:0.5px;
+        min-height:18px; transition:opacity 0.3s;
+      }
+      .load-prog-track {
+        height:3px; background:rgba(255,200,80,0.1); border-radius:2px;
+        overflow:hidden; margin-bottom:8px; position:relative;
+      }
+      #progFill {
+        height:100%;
+        background:linear-gradient(90deg,var(--gold-dim),var(--gold),var(--saffron));
+        border-radius:2px; width:0%;
+        transition:width 0.5s cubic-bezier(0.4,0,0.2,1);
+        box-shadow:0 0 8px rgba(255,180,0,0.6); position:relative;
+      }
+      #progFill::after {
+        content:''; position:absolute; right:0; top:-3px;
+        width:6px; height:9px; background:white; border-radius:50%;
+        box-shadow:0 0 10px rgba(255,200,100,0.9); opacity:0.9;
+      }
+      #errMsg {
+        font-family:'Crimson Pro',Georgia,serif; font-size:12px;
+        color:rgba(255,140,80,0.8); margin-top:8px; display:none; font-style:italic;
+      }
+      .load-dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; }
+      .ldot { width:5px; height:5px; border-radius:50%; background:rgba(255,200,80,0.2); transition:all 0.4s ease; }
+      .ldot.done   { background:var(--gold); box-shadow:0 0 6px rgba(255,180,0,0.8); }
+      .ldot.active { background:var(--saffron); box-shadow:0 0 10px rgba(255,120,0,0.9); transform:scale(1.4); }
+
+      #skipBtn {
+        display:none; margin-top:18px; padding:11px 28px;
+        background:transparent; border:1px solid rgba(255,180,60,0.5);
+        color:var(--gold); font-family:'Cinzel',serif; font-size:13px;
+        letter-spacing:2px; border-radius:2px; cursor:pointer;
+        transition:border-color 0.3s, color 0.3s;
+      }
+      #skipBtn:hover { border-color:var(--gold); color:#fff; }
+
+      @keyframes star-twinkle {
+        0%,100% { opacity:0.2; transform:scale(1); }
+        50%      { opacity:0.9; transform:scale(1.5); }
+      }
+      @keyframes lantern-rise {
+        0%   { transform:translateY(0) rotate(0deg); opacity:0.9; }
+        80%  { opacity:0.85; }
+        100% { transform:translateY(-110vh) rotate(8deg); opacity:0; }
+      }
+      @keyframes lantern-sway {
+        0%,100% { transform:translateX(0); }
+        50%      { transform:translateX(var(--sw,8px)); }
+      }
+      /* ── In-AR overlays ── */
       #statusBar {
         position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
         background:rgba(0,0,0,0.65); backdrop-filter:blur(8px);
         color:#fff; font-size:13px; padding:10px 20px; border-radius:24px;
         z-index:6; display:none; text-align:center;
         border:1px solid rgba(255,255,255,0.12); transition:opacity 0.4s;
-        max-width:88vw; white-space:normal;
+        max-width:88vw; white-space:normal; font-family:sans-serif;
       }
       #ringWrap {
         position:fixed; bottom:26%; left:50%; transform:translateX(-50%);
@@ -42,12 +149,11 @@
                   transform:rotate(-90deg); transform-origin:50% 50%;
                   transition:stroke-dashoffset 0.25s ease; }
       #ringPct  { fill:#fff; font-size:18px; font-weight:600; text-anchor:middle; dominant-baseline:central; }
-
       #nightBadge {
         position:fixed; top:14px; right:14px;
         background:rgba(255,180,30,0.18); border:1px solid rgba(255,180,30,0.4);
         color:#ffc84a; font-size:12px; padding:5px 11px; border-radius:14px;
-        z-index:7; display:none;
+        z-index:7; display:none; font-family:sans-serif;
       }
       #placedTick {
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
@@ -61,15 +167,124 @@
   </head>
   <body>
 
+    <!-- ══ BEAUTIFUL LOADING SCREEN ══ -->
     <div id="loading">
-      <div class="title">🪷 AR Vesak City</div>
-      <div class="sub" id="loadSub">Loading models…</div>
-      <div id="progressWrap">
-        <div id="progLabel">Starting…</div>
-        <div id="progTrack"><div id="progFill"></div></div>
-        <div id="errMsg"></div>
+      <div class="sky-wash"></div>
+      <div id="stars"></div>
+      <svg id="lantern-layer" viewBox="0 0 680 520" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="horizon"></div>
+      <div class="mandala"></div>
+
+      <div class="load-content">
+        <!-- Lotus icon -->
+        <svg class="lotus-icon" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="pg1" cx="50%" cy="80%" r="70%">
+              <stop offset="0%" stop-color="#ff9933"/>
+              <stop offset="100%" stop-color="#ffd580"/>
+            </radialGradient>
+            <radialGradient id="pg2" cx="50%" cy="80%" r="70%">
+              <stop offset="0%" stop-color="#ffc84a"/>
+              <stop offset="100%" stop-color="#ffe499"/>
+            </radialGradient>
+          </defs>
+          <g transform="translate(36,42)">
+            <ellipse cx="0" cy="-10" rx="8" ry="16" fill="url(#pg2)" opacity="0.9" transform="rotate(-40)"/>
+            <ellipse cx="0" cy="-10" rx="8" ry="16" fill="url(#pg2)" opacity="0.9" transform="rotate(-20)"/>
+            <ellipse cx="0" cy="-10" rx="8" ry="16" fill="url(#pg1)" opacity="0.95" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-10" rx="8" ry="16" fill="url(#pg2)" opacity="0.9" transform="rotate(20)"/>
+            <ellipse cx="0" cy="-10" rx="8" ry="16" fill="url(#pg2)" opacity="0.9" transform="rotate(40)"/>
+            <ellipse cx="0" cy="-8" rx="6" ry="13" fill="url(#pg1)" opacity="0.9" transform="rotate(-30)"/>
+            <ellipse cx="0" cy="-8" rx="6" ry="13" fill="url(#pg1)" opacity="0.9" transform="rotate(-10)"/>
+            <ellipse cx="0" cy="-8" rx="6" ry="13" fill="url(#pg1)" opacity="0.95" transform="rotate(10)"/>
+            <ellipse cx="0" cy="-8" rx="6" ry="13" fill="url(#pg1)" opacity="0.9" transform="rotate(30)"/>
+            <circle cx="0" cy="-2" r="7" fill="#ffc84a" opacity="0.95"/>
+            <circle cx="0" cy="-2" r="4" fill="#ffe8a0" opacity="1"/>
+          </g>
+        </svg>
+
+        <div class="load-brand">AR VESAK CITY</div>
+        <div class="load-brand-sub">Augmented Reality · Vesak 2026</div>
+
+        <div class="load-ornament">
+          <div class="ornament-line"></div>
+          <div class="ornament-diamond"></div>
+          <div class="ornament-line r"></div>
+        </div>
+
+        <div class="load-pali">ශ්‍රද්ධා සම්පන්නං</div>
+
+        <div class="load-prog-wrap">
+          <div id="progLabel">Initialising…</div>
+          <div class="load-prog-track"><div id="progFill"></div></div>
+          <div id="errMsg"></div>
+        </div>
+
+        <div class="load-dots">
+          <div class="ldot" id="ld0"></div>
+          <div class="ldot" id="ld1"></div>
+          <div class="ldot" id="ld2"></div>
+          <div class="ldot" id="ld3"></div>
+          <div class="ldot" id="ld4"></div>
+          <div class="ldot" id="ld5"></div>
+        </div>
+
+        <button id="skipBtn">▶ START WITH BUILT-IN MODELS</button>
       </div>
     </div>
+
+    <script>
+    /* ── Star field ── */
+    (function() {
+      const sc = document.getElementById('stars');
+      for (let i=0;i<80;i++) {
+        const s=document.createElement('div');
+        const sz=Math.random()<0.15?2:1;
+        Object.assign(s.style,{
+          position:'absolute', width:sz+'px', height:sz+'px', borderRadius:'50%',
+          background:'white', left:Math.random()*100+'%', top:Math.random()*70+'%',
+          opacity:0.2+Math.random()*0.6,
+          animation:'star-twinkle '+(2+Math.random()*3)+'s '+(Math.random()*3)+'s ease-in-out infinite'
+        });
+        sc.appendChild(s);
+      }
+
+      /* Flying lanterns */
+      const svg = document.getElementById('lantern-layer');
+      const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+      defs.innerHTML = '<filter id="lglow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+      svg.appendChild(defs);
+
+      const ldata = [
+        {x:100,dur:9,delay:0,sw:'-6px'},{x:200,dur:11,delay:2,sw:'8px'},
+        {x:320,dur:8,delay:1,sw:'5px'}, {x:440,dur:12,delay:3,sw:'-9px'},
+        {x:550,dur:10,delay:0.5,sw:'7px'},{x:580,dur:14,delay:4,sw:'-5px'},
+        {x:80,dur:13,delay:5,sw:'10px'},{x:460,dur:9.5,delay:2.5,sw:'-7px'},
+      ];
+      ldata.forEach(({x,dur,delay,sw}) => {
+        const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.setAttribute('transform','translate('+x+',520)');
+        g.style.animation='lantern-rise '+dur+'s '+delay+'s ease-in infinite';
+        const sw2=document.createElementNS('http://www.w3.org/2000/svg','g');
+        sw2.style.cssText='--sw:'+sw+';animation:lantern-sway '+(3+Math.random()*2)+'s '+(Math.random()*2)+'s ease-in-out infinite';
+        const body=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+        body.setAttribute('cx','0');body.setAttribute('cy','-18');
+        body.setAttribute('rx','10');body.setAttribute('ry','14');
+        body.setAttribute('fill','rgba(255,200,80,0.85)');
+        body.setAttribute('filter','url(#lglow)');
+        const ring=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+        ring.setAttribute('cx','0');ring.setAttribute('cy','-4');
+        ring.setAttribute('rx','10');ring.setAttribute('ry','3');
+        ring.setAttribute('fill','rgba(160,100,30,0.7)');
+        const flame=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+        flame.setAttribute('cx','0');flame.setAttribute('cy','-2');
+        flame.setAttribute('rx','3');flame.setAttribute('ry','4');
+        flame.setAttribute('fill','rgba(255,120,0,0.9)');
+        sw2.appendChild(body);sw2.appendChild(ring);sw2.appendChild(flame);
+        g.appendChild(sw2); svg.appendChild(g);
+      });
+    })();
+    </script>
 
     <div id="ringWrap">
       <svg viewBox="0 0 100 100">
@@ -99,10 +314,17 @@
 
       /* ── DOM ── */
       const elLoading   = document.getElementById('loading');
-      const elLoadSub   = document.getElementById('loadSub');
       const elProgLabel = document.getElementById('progLabel');
       const elProgFill  = document.getElementById('progFill');
       const elErrMsg    = document.getElementById('errMsg');
+      const elDots      = [0,1,2,3,4,5].map(i=>document.getElementById('ld'+i));
+      const elSkipBtn   = document.getElementById('skipBtn');
+      // Dot animation helper
+      function setDots(active) {
+        elDots.forEach((d,i)=>{
+          d.className='ldot'+(i<active?' done':i===active?' active':'');
+        });
+      }
       const elStatus    = document.getElementById('statusBar');
       const elRing      = document.getElementById('ringWrap');
       const elRingFill  = document.getElementById('ringFill');
@@ -182,18 +404,11 @@
         let done = 0;
         const total = MODELS.length;
 
-        // Show skip button after 5s in case everything is blocked
+        // Show skip button after 5s
         const skipTimer = setTimeout(() => {
           if (elLoading.style.display === 'none') return;
-          const btn = document.createElement('button');
-          btn.textContent = '▶ Start with built-in models';
-          Object.assign(btn.style, {
-            marginTop:'18px', padding:'11px 22px', background:'#ff9933',
-            color:'#000', fontWeight:'bold', fontSize:'14px',
-            border:'none', borderRadius:'24px', cursor:'pointer'
-          });
-          btn.onclick = () => finishLoading();
-          elLoading.appendChild(btn);
+          elSkipBtn.style.display = 'block';
+          elSkipBtn.onclick = () => finishLoading();
         }, 5000);
 
         try { draco.preload(); } catch(e) { console.warn('Draco preload failed:', e); }
@@ -201,7 +416,8 @@
         const jobs = MODELS.map(({ key, url, label }) =>
           loadWithTimeout(key, url, label).then(() => {
             done++;
-            elProgLabel.textContent = `(${done}/${total}) ${cache[key] ? '✓' : '⚠'} ${label}`;
+            setDots(done - 1);
+            elProgLabel.textContent = cache[key] ? `Loading ${label}…` : `⚠ ${label} — using built-in`;
             elProgFill.style.width  = `${(done / total) * 100}%`;
           })
         );
@@ -214,8 +430,7 @@
       function finishLoading() {
         elProgFill.style.width  = '100%';
         elProgLabel.textContent = '✅ Ready!';
-        elLoadSub.textContent   = 'Tap "Start AR" then point at the floor.';
-        // Remove skip button if it exists
+          // Remove skip button if it exists
         const btn = elLoading.querySelector('button');
         if (btn) btn.remove();
         setTimeout(() => elLoading.style.display = 'none', 600);
