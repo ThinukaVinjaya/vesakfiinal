@@ -499,24 +499,40 @@
         p.add(m);
       }
 
-      /* Vesak lantern cluster — centre back */
+      /* Vesak lantern cluster — centre back, hanging in the air */
       function vesakLanternCluster(p) {
+        // [x, hangHeight, z, modelHeight]
+        // hangHeight = bottom of lantern above floor — range 1.6–2.4m
         const spots = [
-          [0,   0, -7.5, 0.75],
-          [-1.1,0, -8.5, 0.55],
-          [ 1.1,0, -8.5, 0.55],
-          [-0.5,0, -6.5, 0.50],
-          [ 0.5,0, -6.5, 0.50],
-          [ 0,  0, -9.5, 0.50],
-          [-1.8,0, -7.0, 0.45],
-          [ 1.8,0, -7.0, 0.45],
+          [0,    2.0, -7.5, 0.75],   // centre main — highest
+          [-1.1, 1.8, -8.5, 0.55],
+          [ 1.1, 1.8, -8.5, 0.55],
+          [-0.5, 1.6, -6.5, 0.50],
+          [ 0.5, 1.6, -6.5, 0.50],
+          [ 0,   2.2, -9.5, 0.50],   // far back — very high
+          [-1.8, 1.7, -7.0, 0.45],
+          [ 1.8, 1.7, -7.0, 0.45],
         ];
-        spots.forEach(([x,y,z,h]) => {
+        const stringMat = new THREE.MeshBasicMaterial({color:0x8b6914});
+        const stringGeo = new THREE.CylinderGeometry(0.006, 0.006, 1, 4); // resized per lantern below
+
+        spots.forEach(([x, hangY, z, h]) => {
           const m = getModel('vesakLantern', h);
-          m.position.set(x,y,z);
+          // Position so BOTTOM of lantern is at hangY
+          m.position.set(x, hangY, z);
           m.rotation.y = (Math.random()-0.5)*0.6;
           p.add(m);
-          // No per-lantern PointLight — handled by pool
+
+          // Hanging string from ceiling height (3.2m) down to top of lantern
+          const ceilY   = 3.2;
+          const topY    = hangY + h;          // top of lantern
+          const strLen  = ceilY - topY;
+          if (strLen > 0.05) {
+            const sg = new THREE.CylinderGeometry(0.005, 0.005, strLen, 4);
+            const sm = new THREE.Mesh(sg, stringMat);
+            sm.position.set(x, topY + strLen/2, z);
+            p.add(sm);
+          }
         });
 
         // String light beads — emissive only, zero lights
@@ -547,12 +563,15 @@
           p.add(m);
         }
 
+        // Side clusters — kept clear of stupa (3.0, -5.5) and buddha (-2.5, -5.0)
+        // Removed [2.3,0,-5.5] and [-2.3,0,-5.5] which were inside those footprints
+        // Replaced with safer positions further out on each side
         [
-          [-1.9,0,-2.5],[1.9,0,-2.5],
-          [-2.3,0,-5.5],[2.3,0,-5.5],
-          [-1.6,0,-8.5],[1.6,0,-8.5],
-          [-3.2,0,-4.0],[3.2,0,-4.0],
-          [-3.0,0,-7.5],[3.0,0,-7.5],
+          [-1.9,0,-2.5],[1.9,0,-2.5],          // entrance sides — safe
+          [-1.0,0,-5.5],[1.0,0,-5.5],           // narrow centre aisle beside path — safe
+          [-1.6,0,-8.5],[1.6,0,-8.5],           // far back — safe
+          [-4.2,0,-4.0],[4.2,0,-4.0],           // pushed further out from stupa/buddha
+          [-4.0,0,-7.5],[4.0,0,-7.5],           // wide sides, clear of stupa
         ].forEach(([x,y,z],idx) => {
           const n = 2 + Math.floor(Math.random()*3);
           for (let j=0; j<n; j++) {
@@ -584,19 +603,22 @@
 
       /* Path poles — emissive glowing tops, no extra PointLights */
       function pathPoles(p) {
-        // Shared material instances — PERF FIX 5: don't create new material per mesh
         const poleMat = new THREE.MeshStandardMaterial({color:0x7a4a20,roughness:0.85});
         const ballMat = new THREE.MeshStandardMaterial({color:0xffaa33,emissive:0xff8800,emissiveIntensity:2.2,transparent:true,opacity:0.93});
-        const poleGeo = new THREE.CylinderGeometry(0.03,0.04,2.1,6);
+        // Pole height 2.4 so ball sits at y=2.5 — clearly above the 2.1m string lights
+        const poleGeo = new THREE.CylinderGeometry(0.03,0.04,2.4,6);
         const ballGeo = new THREE.SphereGeometry(0.092,8,8);
 
-        [-1.25,1.25].forEach(sx => {
+        // ±1.45 keeps poles clearly outside the ±1.25 lantern cluster x-range
+        [-1.45, 1.45].forEach(sx => {
           for (let i=0; i<8; i++) {
             const z = -1.4-i*1.5;
             const pole = new THREE.Mesh(poleGeo, poleMat);
-            pole.position.set(sx,1.05,z); p.add(pole);
+            pole.position.set(sx, 1.2, z);   // centre of 2.4m pole → base at 0, top at 2.4
+            p.add(pole);
             const ball = new THREE.Mesh(ballGeo, ballMat);
-            ball.position.set(sx,2.15,z); p.add(ball);
+            ball.position.set(sx, 2.5, z);   // sits at tip of pole
+            p.add(ball);
           }
         });
       }
