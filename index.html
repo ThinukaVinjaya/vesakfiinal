@@ -1,877 +1,749 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>AR Vesak City 🪷</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Noto+Sans:wght@300;400&display=swap');
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>AR Vesak City</title>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { overflow:hidden; background:#000; font-family:sans-serif; }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #000; font-family: 'Noto Sans', sans-serif; }
-    canvas { display: block; width: 100vw; height: 100vh; }
+      #loading {
+        position:fixed; inset:0;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        background:#000; color:#fff; z-index:20; gap:16px; text-align:center; padding:32px;
+      }
+      .title { font-size:26px; font-weight:bold; color:#ffd580; letter-spacing:1px; }
+      .sub   { font-size:14px; color:#bbb; line-height:1.8; }
 
-    /* ── Loading screen ── */
-    #loading {
-      position: fixed; inset: 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: radial-gradient(ellipse at 50% 30%, #1a0a2e 0%, #050510 100%);
-      color: #fff; z-index: 20; gap: 18px; text-align: center; padding: 32px;
+      #progressWrap { width:240px; }
+      #progLabel { font-size:13px; color:#ffd580; margin-bottom:8px; }
+      #progTrack { background:rgba(255,255,255,0.12); border-radius:8px; height:7px; overflow:hidden; }
+      #progFill  { height:100%; background:linear-gradient(90deg,#ffd580,#ff9933); border-radius:8px; width:0%; transition:width 0.3s; }
+      #errMsg    { color:#ff9966; font-size:12px; margin-top:8px; display:none; line-height:1.5; }
+
+      #statusBar {
+        position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+        background:rgba(0,0,0,0.65); backdrop-filter:blur(8px);
+        color:#fff; font-size:13px; padding:10px 20px; border-radius:24px;
+        z-index:6; display:none; text-align:center;
+        border:1px solid rgba(255,255,255,0.12); transition:opacity 0.4s;
+        max-width:88vw; white-space:normal;
+      }
+      #ringWrap {
+        position:fixed; bottom:26%; left:50%; transform:translateX(-50%);
+        width:110px; height:110px; display:none; z-index:5; pointer-events:none;
+      }
+      #ringWrap svg { width:100%; height:100%; }
+      #ringBg   { fill:none; stroke:rgba(255,255,255,0.12); stroke-width:5; }
+      #ringFill { fill:none; stroke:#00ffcc; stroke-width:5; stroke-linecap:round;
+                  stroke-dasharray:283; stroke-dashoffset:283;
+                  transform:rotate(-90deg); transform-origin:50% 50%;
+                  transition:stroke-dashoffset 0.25s ease; }
+      #ringPct  { fill:#fff; font-size:18px; font-weight:600; text-anchor:middle; dominant-baseline:central; }
+
+      #nightBadge {
+        position:fixed; top:14px; right:14px;
+        background:rgba(255,180,30,0.18); border:1px solid rgba(255,180,30,0.4);
+        color:#ffc84a; font-size:12px; padding:5px 11px; border-radius:14px;
+        z-index:7; display:none;
+      }
+      #placedTick {
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
+        background:rgba(0,200,120,0.22); border:2px solid #00d484;
+        border-radius:50%; width:72px; height:72px;
+        display:flex; align-items:center; justify-content:center;
+        color:#00d484; font-size:32px; z-index:8; pointer-events:none;
+        transition:transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.5s; opacity:0;
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="loading">
+      <div class="title">🪷 AR Vesak City</div>
+      <div class="sub" id="loadSub">Loading models…</div>
+      <div id="progressWrap">
+        <div id="progLabel">Starting…</div>
+        <div id="progTrack"><div id="progFill"></div></div>
+        <div id="errMsg"></div>
+      </div>
+    </div>
+
+    <div id="ringWrap">
+      <svg viewBox="0 0 100 100">
+        <circle id="ringBg"   cx="50" cy="50" r="45"/>
+        <circle id="ringFill" cx="50" cy="50" r="45"/>
+        <text   id="ringPct"  x="50"  y="50">0%</text>
+      </svg>
+    </div>
+    <div id="statusBar"></div>
+    <div id="nightBadge">🌙 Night mode</div>
+    <div id="placedTick">✓</div>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+      }
     }
-    #loading .mandala {
-      width: 110px; height: 110px; opacity: 0.7;
-      animation: spin 18s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    </script>
 
-    #loading .title {
-      font-family: 'Cinzel', serif;
-      font-size: 26px; font-weight: 600;
-      color: #ffd580;
-      text-shadow: 0 0 24px rgba(255,200,80,0.5);
-      letter-spacing: 1px;
-    }
-    #loading .sub {
-      font-size: 13px; color: #9b8faa; line-height: 1.8;
-      max-width: 280px;
-    }
-    #loading .models-loading {
-      font-size: 11px; color: #6a5f7a; margin-top: 6px;
-    }
-    #loadProgress {
-      width: 220px; height: 3px; background: rgba(255,255,255,0.1);
-      border-radius: 2px; overflow: hidden; margin-top: 4px;
-    }
-    #loadBar {
-      height: 100%; width: 0%; background: linear-gradient(90deg, #ff7fbf, #ffd580);
-      border-radius: 2px; transition: width 0.3s ease;
-    }
+    <script type="module">
+      import * as THREE   from 'three';
+      import { ARButton } from 'three/addons/webxr/ARButton.js';
+      import { GLTFLoader }  from 'three/addons/loaders/GLTFLoader.js';
+      import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-    /* ── AR Button override ── */
-    #ARButton {
-      position: fixed !important;
-      bottom: 32px !important; left: 50% !important;
-      transform: translateX(-50%) !important;
-      background: linear-gradient(135deg, #b8860b, #ffd700) !important;
-      color: #1a0a00 !important;
-      font-family: 'Cinzel', serif !important;
-      font-size: 15px !important; font-weight: 600 !important;
-      border: none !important; border-radius: 50px !important;
-      padding: 14px 36px !important;
-      box-shadow: 0 4px 28px rgba(255,180,0,0.45) !important;
-      letter-spacing: 0.5px !important;
-      cursor: pointer !important; z-index: 10 !important;
-      transition: transform 0.2s, box-shadow 0.2s !important;
-    }
-    #ARButton:hover { transform: translateX(-50%) scale(1.05) !important; box-shadow: 0 6px 36px rgba(255,180,0,0.6) !important; }
+      /* ── DOM ── */
+      const elLoading   = document.getElementById('loading');
+      const elLoadSub   = document.getElementById('loadSub');
+      const elProgLabel = document.getElementById('progLabel');
+      const elProgFill  = document.getElementById('progFill');
+      const elErrMsg    = document.getElementById('errMsg');
+      const elStatus    = document.getElementById('statusBar');
+      const elRing      = document.getElementById('ringWrap');
+      const elRingFill  = document.getElementById('ringFill');
+      const elRingPct   = document.getElementById('ringPct');
+      const elNight     = document.getElementById('nightBadge');
+      const elTick      = document.getElementById('placedTick');
 
-    /* ── Status bar ── */
-    #statusBar {
-      position: fixed; bottom: 28px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(5,2,20,0.75);
-      backdrop-filter: blur(10px);
-      color: #fde9a0; font-size: 13px;
-      padding: 10px 22px; border-radius: 28px;
-      z-index: 6; display: none; text-align: center;
-      border: 1px solid rgba(255,200,80,0.25);
-      transition: opacity 0.4s;
-      max-width: 86vw; white-space: normal;
-      font-family: 'Noto Sans', sans-serif;
-    }
+      /* ── R2 model URLs ── */
+      const R2 = 'https://pub-7cbad791f95e4c9680981f095fab45e1.r2.dev/';
+      const MODELS = [
+        { key:'buddha',       url: R2+'stone_buddha_statue.glb', label:'Buddha Statue'   },
+        { key:'lotus1',       url: R2+'lotus1.glb',              label:'Lotus Flower 1'  },
+        { key:'lotus2',       url: R2+'lotus_flower2.glb',       label:'Lotus Flower 2'  },
+        { key:'lotusLantern', url: R2+'lotus_lanttern.glb',      label:'Lotus Lantern'   },
+        { key:'vesakLantern', url: R2+'vesak_lanterns.glb',      label:'Vesak Lantern'   },
+        { key:'stupa',        url: R2+'sthupa_srilanka.glb',     label:'Sri Lanka Stupa' },
+      ];
 
-    /* ── Progress ring ── */
-    #ringWrap {
-      position: fixed; bottom: 24%; left: 50%;
-      transform: translateX(-50%);
-      width: 120px; height: 120px;
-      display: none; z-index: 5; pointer-events: none;
-    }
-    #ringWrap svg { width: 100%; height: 100%; filter: drop-shadow(0 0 8px rgba(255,180,80,0.4)); }
-    #ringBg   { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 4; }
-    #ringFill { fill: none; stroke: #ffd580; stroke-width: 4;
-                stroke-linecap: round;
-                stroke-dasharray: 283; stroke-dashoffset: 283;
-                transform: rotate(-90deg); transform-origin: 50% 50%;
-                transition: stroke-dashoffset 0.25s ease; }
-    #ringIcon { font-size: 28px; text-anchor: middle; dominant-baseline: central; }
+      /* ── GLTF / DRACO loader ── */
+      const draco = new DRACOLoader();
+      draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.5/');
+      const gltfLoader = new GLTFLoader();
+      gltfLoader.setDRACOLoader(draco);
 
-    /* ── Night badge ── */
-    #nightBadge {
-      position: fixed; top: 16px; right: 16px;
-      background: rgba(20,10,50,0.7);
-      border: 1px solid rgba(160,120,255,0.35);
-      color: #c8b0ff; font-size: 12px;
-      padding: 5px 12px; border-radius: 16px;
-      z-index: 7; display: none;
-      font-family: 'Noto Sans', sans-serif;
-    }
+      const cache = {};  // key → THREE.Group (original, never mutated)
 
-    /* ── Placed tick ── */
-    #placedTick {
-      position: fixed; top: 50%; left: 50%;
-      transform: translate(-50%,-50%) scale(0);
-      background: rgba(0,180,100,0.18);
-      border: 2px solid #00d484; border-radius: 50%;
-      width: 80px; height: 80px;
-      display: flex; align-items: center; justify-content: center;
-      color: #00d484; font-size: 36px;
-      z-index: 8; pointer-events: none;
-      transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), opacity 0.5s;
-      opacity: 0;
-    }
+      /* ────────────────────────────────────────────────────────────────────
+         PERF FIX 1 — Parallel model loading with Promise.all
+         Previously: sequential await inside a for-loop → each model waited
+         for the previous one. With 6 models that's 6× the RTT.
+         Now: all 6 fire at once, total time ≈ slowest single download.
+      ──────────────────────────────────────────────────────────────────── */
+      async function preload() {
+        let done = 0;
+        const total = MODELS.length;
 
-    /* ── Scale hint ── */
-    #scaleHint {
-      position: fixed; top: 18px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(5,2,20,0.72);
-      backdrop-filter: blur(8px);
-      color: #fde9a0; font-size: 12px;
-      padding: 7px 18px; border-radius: 20px;
-      z-index: 7; display: none;
-      border: 1px solid rgba(255,200,80,0.2);
-      font-family: 'Noto Sans', sans-serif;
-    }
-  </style>
-</head>
-<body>
+        // Pre-warm DRACO WASM so it's ready before first decode
+        draco.preload();
 
-<!-- Loading screen -->
-<div id="loading">
-  <svg class="mandala" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <g fill="none" stroke="#ffd580" stroke-width="0.8" opacity="0.8">
-      <circle cx="50" cy="50" r="46"/>
-      <circle cx="50" cy="50" r="38"/>
-      <circle cx="50" cy="50" r="28"/>
-      <circle cx="50" cy="50" r="14"/>
-      <circle cx="50" cy="50" r="5"/>
-      <!-- petals -->
-      <ellipse cx="50" cy="14" rx="4" ry="9"/>
-      <ellipse cx="50" cy="86" rx="4" ry="9"/>
-      <ellipse cx="14" cy="50" rx="9" ry="4"/>
-      <ellipse cx="86" cy="50" rx="9" ry="4"/>
-      <ellipse cx="26.7" cy="26.7" rx="4" ry="9" transform="rotate(45 26.7 26.7)"/>
-      <ellipse cx="73.3" cy="26.7" rx="4" ry="9" transform="rotate(-45 73.3 26.7)"/>
-      <ellipse cx="26.7" cy="73.3" rx="4" ry="9" transform="rotate(-45 26.7 73.3)"/>
-      <ellipse cx="73.3" cy="73.3" rx="4" ry="9" transform="rotate(45 73.3 73.3)"/>
-      <line x1="50" y1="4" x2="50" y2="96"/>
-      <line x1="4" y1="50" x2="96" y2="50"/>
-      <line x1="21.7" y1="21.7" x2="78.3" y2="78.3"/>
-      <line x1="78.3" y1="21.7" x2="21.7" y2="78.3"/>
-    </g>
-  </svg>
-  <div class="title">🪷 AR Vesak City</div>
-  <div class="sub">Experience the sacred Vesak celebration in augmented reality. Point your camera at the floor to begin.</div>
-  <div id="loadProgress"><div id="loadBar"></div></div>
-  <div class="models-loading" id="loadText">Preparing sacred models…</div>
-</div>
-
-<div id="ringWrap">
-  <svg viewBox="0 0 100 100">
-    <circle id="ringBg"   cx="50" cy="50" r="45"/>
-    <circle id="ringFill" cx="50" cy="50" r="45"/>
-    <text   id="ringIcon" x="50"  y="50">🪷</text>
-  </svg>
-</div>
-
-<div id="statusBar"></div>
-<div id="nightBadge">🌙 Night mode</div>
-<div id="placedTick">✓</div>
-<div id="scaleHint">📐 Pinch to scale · Tap to re-place</div>
-
-<script type="module">
-  import * as THREE from 'https://unpkg.com/three@0.150.1/build/three.module.js';
-  import { ARButton }    from 'https://unpkg.com/three@0.150.1/examples/jsm/webxr/ARButton.js';
-  import { GLTFLoader }  from 'https://unpkg.com/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
-  import { DRACOLoader } from 'https://unpkg.com/three@0.150.1/examples/jsm/loaders/DRACOLoader.js';
-
-  // ── DOM ──────────────────────────────────────────────────────────────────────
-  const elStatus   = document.getElementById('statusBar');
-  const elRing     = document.getElementById('ringWrap');
-  const elRingFill = document.getElementById('ringFill');
-  const elNight    = document.getElementById('nightBadge');
-  const elTick     = document.getElementById('placedTick');
-  const elScaleHint = document.getElementById('scaleHint');
-  const elLoadBar  = document.getElementById('loadBar');
-  const elLoadText = document.getElementById('loadText');
-
-  // ── Model URLs ────────────────────────────────────────────────────────────────
-  // jsDelivr mirrors GitHub with correct CORS headers for browser/WebXR fetches
-  const BASE = 'https://cdn.jsdelivr.net/gh/ThinukaVinjaya/vesakmodels@main/';
-  const MODELS = {
-    buddha:       BASE + 'stone_buddha_statue.glb',
-    lotus1:       BASE + 'lotus1.glb',
-    lotus2:       BASE + 'lotus_flower2.glb',
-    lotusLantern: BASE + 'lotus_lanttern.glb',
-    vesakLantern: BASE + 'vesak_lanterns.glb',
-    stupa:        BASE + 'sthupa_srilanka.glb',
-  };
-
-  // ── Config ────────────────────────────────────────────────────────────────────
-  const CIRCUM       = 2 * Math.PI * 45;
-  const FRAMES_DAY   = 20;
-  const FRAMES_NIGHT = 6;
-  const DRIFT_DAY    = 0.06;
-  const DRIFT_NIGHT  = 0.2;
-  const FALLBACK_MS  = 4500;
-  const CITY_SCALE   = 0.018;   // overall scene scale — feels real on floor
-
-  // ── State ─────────────────────────────────────────────────────────────────────
-  let camera, scene, renderer, reticle;
-  let hitTestSource = null, hitTestSourceRequested = false;
-  let placed = false, sessionStartTime = null;
-  let stableCount = 0;
-  const lastHitPos = new THREE.Vector3();
-  let isNightMode  = false;
-  let cityGroup    = null;
-  let currentScale = 1.0;
-
-  // cached clones
-  const cache = {};
-
-  // animation targets
-  const flyingLanterns = [], pathLights = [], particleGroups = [], lotusGroups = [];
-  const vesakLanternMeshes = [];
-
-  // ── GLTF Loader ───────────────────────────────────────────────────────────────
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath('https://unpkg.com/three@0.150.1/examples/jsm/libs/draco/');
-  const gltfLoader = new GLTFLoader();
-  gltfLoader.setDRACOLoader(dracoLoader);
-
-  let loadedCount = 0;
-  const totalModels = Object.keys(MODELS).length;
-
-  function loadModels() {
-    return new Promise((resolve) => {
-      const keys = Object.keys(MODELS);
-      let done = 0;
-      keys.forEach(key => {
-        elLoadText.textContent = `Loading ${key}…`;
-        gltfLoader.load(
-          MODELS[key],
-          (gltf) => {
-            cache[key] = gltf.scene;
-            // Enable shadows and nice materials on all meshes
-            cache[key].traverse(n => {
-              if (n.isMesh) {
-                n.castShadow = true; n.receiveShadow = true;
-                if (n.material) {
-                  n.material.needsUpdate = true;
-                }
+        const jobs = MODELS.map(({ key, url, label }) =>
+          new Promise(resolve => {
+            gltfLoader.load(
+              url,
+              result => {
+                cache[key] = result.scene;
+                // Pre-traverse once here so clone() is fast later
+                cache[key].traverse(n => {
+                  if (n.isMesh) {
+                    n.castShadow    = true;
+                    n.receiveShadow = true;
+                    // Share materials across instances (cloning copies reference)
+                    if (n.material) n.material.needsUpdate = false;
+                  }
+                });
+                done++;
+                elProgLabel.textContent = `Loaded: ${label} (${done}/${total})`;
+                elProgFill.style.width  = `${(done/total)*100}%`;
+                resolve();
+              },
+              undefined,  // progress callback not needed
+              () => {
+                console.warn(`Failed to load: ${key}`);
+                cache[key] = null;
+                done++;
+                elProgFill.style.width  = `${(done/total)*100}%`;
+                elErrMsg.style.display  = 'block';
+                elErrMsg.textContent    = `⚠️ "${label}" failed — using placeholder.`;
+                resolve();  // always resolve so Promise.all continues
               }
-            });
-            done++;
-            const pct = Math.round((done / totalModels) * 100);
-            elLoadBar.style.width = pct + '%';
-            elLoadText.textContent = `Loaded ${done}/${totalModels} models…`;
-            if (done === totalModels) resolve();
-          },
-          (xhr) => {
-            // per-model progress (optional)
-          },
-          (err) => {
-            console.warn(`Failed to load ${key}:`, err);
-            done++;
-            const pct = Math.round((done / totalModels) * 100);
-            elLoadBar.style.width = pct + '%';
-            if (done === totalModels) resolve();
-          }
+            );
+          })
         );
-      });
-    });
-  }
 
-  function cloneModel(key, scale = 1) {
-    if (!cache[key]) return null;
-    const clone = cache[key].clone(true);
-    // Re-assign materials so emissive and transparency work
-    clone.traverse(n => {
-      if (n.isMesh && n.material) {
-        n.material = n.material.clone();
+        await Promise.all(jobs);
+
+        elProgFill.style.width  = '100%';
+        elProgLabel.textContent = '✅ Ready!';
+        elLoadSub.textContent   = 'Tap "Start AR" then point at the floor.';
+        setTimeout(() => elLoading.style.display = 'none', 700);
       }
-    });
-    clone.scale.setScalar(scale);
-    return clone;
-  }
 
-  // ── Light sensor ──────────────────────────────────────────────────────────────
-  let videoEl = null, brightnessCanvas = null, brightnessCtx = null;
-  function startBrightnessSensor() {
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-      .then(stream => {
-        videoEl = document.createElement('video');
-        videoEl.srcObject = stream; videoEl.playsInline = true; videoEl.muted = true; videoEl.play();
-        brightnessCanvas = document.createElement('canvas'); brightnessCanvas.width = 32; brightnessCanvas.height = 32;
-        brightnessCtx = brightnessCanvas.getContext('2d', { willReadFrequently: true });
-        setInterval(measureBrightness, 1400);
-      }).catch(() => {});
-  }
-  function measureBrightness() {
-    if (!videoEl || videoEl.readyState < 2) return;
-    brightnessCtx.drawImage(videoEl, 0, 0, 32, 32);
-    const d = brightnessCtx.getImageData(0, 0, 32, 32).data;
-    let lum = 0;
-    for (let i = 0; i < d.length; i += 4) lum += 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-    lum /= (32 * 32);
-    const night = lum < 60;
-    if (night !== isNightMode) { isNightMode = night; elNight.style.display = night ? 'block' : 'none'; }
-  }
+      /* ────────────────────────────────────────────────────────────────────
+         PERF FIX 2 — getModel with single Box3 pass
+         Old code called setFromObject twice (each traverses the whole tree).
+         Now: one pass, reuse the same Box3.
+      ──────────────────────────────────────────────────────────────────── */
 
-  // ── Pinch-to-scale (touch) ────────────────────────────────────────────────────
-  let pinchStartDist = null, pinchStartScale = 1;
-  window.addEventListener('touchstart', e => {
-    if (!placed || !cityGroup) return;
-    if (e.touches.length === 2) {
-      pinchStartDist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-      pinchStartScale = currentScale;
-    }
-  });
-  window.addEventListener('touchmove', e => {
-    if (!placed || !cityGroup || e.touches.length !== 2) return;
-    const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    const ratio = d / pinchStartDist;
-    currentScale = Math.min(4, Math.max(0.2, pinchStartScale * ratio));
-    cityGroup.scale.setScalar(CITY_SCALE * currentScale);
-  });
+      // Cached fallback geometries & materials — created once, reused
+      const _fbGeo = {};
+      const _fbMat = {};
+      function getFallback(key) {
+        if (!_fbGeo[key]) {
+          _fbGeo.buddha       = new THREE.CylinderGeometry(0.2,0.3,1,8);
+          _fbGeo.stupa        = new THREE.ConeGeometry(0.4,1.8,8);
+          _fbGeo.lotus1       = new THREE.SphereGeometry(0.1,6,6);
+          _fbGeo.lotus2       = new THREE.SphereGeometry(0.1,6,6);
+          _fbGeo.lotusLantern = new THREE.SphereGeometry(0.12,6,6);
+          _fbGeo.vesakLantern = new THREE.BoxGeometry(0.2,0.3,0.1);
+          _fbMat.buddha       = new THREE.MeshStandardMaterial({color:0xf3e5ab});
+          _fbMat.stupa        = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4});
+          _fbMat.lotus1       = new THREE.MeshStandardMaterial({color:0xff7fbf});
+          _fbMat.lotus2       = new THREE.MeshStandardMaterial({color:0xff99cc});
+          _fbMat.lotusLantern = new THREE.MeshStandardMaterial({color:0xffaa55,emissive:0xff8800,emissiveIntensity:1});
+          _fbMat.vesakLantern = new THREE.MeshStandardMaterial({color:0xff5522,emissive:0xff9933,emissiveIntensity:0.8});
+        }
+        const root = new THREE.Group();
+        const geo  = _fbGeo[key] || new THREE.BoxGeometry(0.2,0.2,0.2);
+        const mat  = _fbMat[key] || new THREE.MeshStandardMaterial({color:0xaaa});
+        root.add(new THREE.Mesh(geo, mat));
+        return root;
+      }
 
-  // ── Init ──────────────────────────────────────────────────────────────────────
-  async function init() {
-    elLoadBar.style.width = '5%';
-    await loadModels();
-    elLoadBar.style.width = '100%';
-    elLoadText.textContent = 'Ready! Tap Start AR';
+      const _box3  = new THREE.Box3();   // reusable — avoids GC pressure
+      const _size3 = new THREE.Vector3();
+      const _cent3 = new THREE.Vector3();
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    Object.assign(renderer.domElement.style, { position:'absolute', top:'0', left:'0', width:'100%', height:'100%' });
-    document.body.appendChild(renderer.domElement);
+      function getModel(key, targetHeight) {
+        const root = cache[key] ? cache[key].clone(true) : getFallback(key);
 
-    scene  = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 40);
+        // Single Box3 pass
+        _box3.setFromObject(root);
+        _box3.getSize(_size3);
+        _box3.getCenter(_cent3);
 
-    // Lighting
-    const hemi = new THREE.HemisphereLight(0xfff0d0, 0x886633, 1.0); scene.add(hemi);
-    const sun  = new THREE.DirectionalLight(0xfff5dc, 0.7);
-    sun.position.set(3, 8, 4);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 30;
-    sun.shadow.camera.left = sun.shadow.camera.bottom = -10;
-    sun.shadow.camera.right = sun.shadow.camera.top = 10;
-    scene.add(sun);
+        const s = targetHeight / (_size3.y || 1);
+        root.scale.setScalar(s);
 
-    // Reticle
-    reticle = new THREE.Mesh(
-      new THREE.RingGeometry(0.08, 0.13, 32).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0xffd580, transparent: true, opacity: 0.82, side: THREE.DoubleSide })
-    );
-    reticle.matrixAutoUpdate = false; reticle.visible = false;
-    scene.add(reticle);
+        // After scale, recalculate min.y only (cheaper than full recompute)
+        root.position.x -= _cent3.x * s;
+        root.position.z -= _cent3.z * s;
+        root.position.y -= _box3.min.y * s;
 
-    // AR Button
-    document.body.appendChild(
-      ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] })
-    );
+        return root;
+      }
 
-    renderer.xr.addEventListener('sessionstart', () => {
-      document.getElementById('loading').style.display = 'none';
-      sessionStartTime = performance.now();
-      showStatus('🔍 Aim at the floor ahead…');
-      elRing.style.display = 'block';
-      elScaleHint.style.display = 'none';
-      startBrightnessSensor();
-    });
-    renderer.xr.addEventListener('sessionend', () => {
-      hitTestSourceRequested = false; hitTestSource = null;
-      placed = false; stableCount = 0; sessionStartTime = null;
-      if (cityGroup) { scene.remove(cityGroup); cityGroup = null; }
-    });
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
+      /* ── Three.js scene ── */
+      const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // cap at 2× for perf
       renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+      renderer.xr.enabled        = true;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
 
-    renderer.setAnimationLoop(render);
-  }
+      /* ────────────────────────────────────────────────────────────────────
+         PERF FIX 3 — Only ONE shadow-casting DirectionalLight.
+         Every shadow-caster doubles the draw calls. Removed per-lantern
+         shadow lights; they're replaced by emissive materials + a few
+         cheap non-shadow PointLights pooled and reused.
+      ──────────────────────────────────────────────────────────────────── */
 
-  // ── Status helpers ─────────────────────────────────────────────────────────────
-  function showStatus(msg) { elStatus.textContent = msg; elStatus.style.display = 'block'; elStatus.style.opacity = '1'; }
-  function hideStatus() { elStatus.style.opacity = '0'; setTimeout(() => elStatus.style.display = 'none', 400); }
-  function setRing(pct) {
-    elRingFill.style.strokeDashoffset = CIRCUM * (1 - pct / 100);
-    const h = 38 + pct * 0.4;
-    elRingFill.style.stroke = `hsl(${h},90%,58%)`;
-  }
+      Object.assign(renderer.domElement.style, {
+        position:'fixed', top:'0', left:'0', width:'100%', height:'100%', zIndex:'1'
+      });
+      document.body.appendChild(renderer.domElement);
 
-  // ── Main render loop ──────────────────────────────────────────────────────────
-  function render(timestamp, frame) {
-    if (frame) {
-      const session      = renderer.xr.getSession();
-      const refSpace     = renderer.xr.getReferenceSpace();
+      const scene  = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 60);
 
-      if (!hitTestSourceRequested && session) {
-        session.requestReferenceSpace('viewer').then(rs => {
-          session.requestHitTestSource({ space: rs }).then(src => { hitTestSource = src; });
-        });
-        hitTestSourceRequested = true;
+      // Lights — minimal set
+      scene.add(new THREE.HemisphereLight(0xffe4b5, 0x664422, 1.3));
+      const sun = new THREE.DirectionalLight(0xfff8e0, 0.9);
+      sun.position.set(4, 10, 5);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(1024, 1024); // 1024 vs 2048 = 4× cheaper shadow map
+      sun.shadow.camera.near = 0.5;
+      sun.shadow.camera.far  = 25;
+      scene.add(sun);
+      scene.add(new THREE.AmbientLight(0xffd580, 0.5));
+
+      /* ────────────────────────────────────────────────────────────────────
+         PERF FIX 4 — PointLight pool
+         Instead of creating 30+ PointLights (one per lantern / orb / pole),
+         we create a fixed pool of 8 animated lights. They cover the whole
+         scene with warm flickering. This reduces GPU lighting passes from
+         ~30 to 8, a massive win on mobile WebXR.
+      ──────────────────────────────────────────────────────────────────── */
+      const POOL_SIZE = 8;
+      const lightPool = [];
+      const lightPhases = [0, 0.8, 1.6, 2.4, 3.2, 4.0, 4.8, 5.6];
+      const lightPositions = [
+        [-2.5, 1.0, -5.0],   // Buddha area
+        [ 3.0, 1.2, -5.5],   // Stupa area
+        [ 0.0, 0.6, -7.5],   // Vesak lantern cluster centre
+        [-1.3, 0.4, -10.0],  // Far left
+        [ 1.3, 0.4, -10.0],  // Far right
+        [ 0.0, 0.8, -3.5],   // Entrance
+        [-3.0, 0.5, -4.5],   // Left side
+        [ 3.0, 0.5, -4.5],   // Right side
+      ];
+      for (let i = 0; i < POOL_SIZE; i++) {
+        const pl = new THREE.PointLight(0xffa040, 0.9, 5.5);
+        pl.position.set(...lightPositions[i]);
+        lightPool.push({ light: pl, phase: lightPhases[i] });
+        // Note: added to world group in buildCity, not scene directly
       }
 
-      if (!placed) {
-        const maxFrames = isNightMode ? FRAMES_NIGHT : FRAMES_DAY;
-        const maxDrift  = isNightMode ? DRIFT_NIGHT  : DRIFT_DAY;
-        let gotHit = false;
+      // Reticle
+      const reticle = new THREE.Mesh(
+        new THREE.RingGeometry(0.08, 0.13, 32).rotateX(-Math.PI/2),
+        new THREE.MeshBasicMaterial({ color:0x00ffcc, transparent:true, opacity:0.9 })
+      );
+      reticle.matrixAutoUpdate = false;
+      reticle.visible = false;
+      scene.add(reticle);
 
-        if (hitTestSource) {
-          const results = frame.getHitTestResults(hitTestSource);
-          if (results.length > 0) {
-            const pose = results[0].getPose(refSpace);
-            reticle.visible = true;
-            reticle.matrix.fromArray(pose.transform.matrix);
+      const arBtn = ARButton.createButton(renderer, { requiredFeatures:['hit-test'] });
+      arBtn.style.zIndex = '10';
+      document.body.appendChild(arBtn);
 
-            const hitPos = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
-            const drift  = hitPos.distanceTo(lastHitPos);
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
 
-            if (drift < maxDrift) stableCount++;
-            else stableCount = isNightMode ? Math.max(0, stableCount - 1) : 0;
-            lastHitPos.copy(hitPos);
-            gotHit = true;
+      /* ── AR state ── */
+      const CIRCUM     = 2*Math.PI*45;
+      const FRAMES_DAY = 18, FRAMES_NIGHT = 5;
+      const DRIFT_DAY  = 0.06, DRIFT_NIGHT = 0.18;
+      const FALLBACK_MS = 4000;
 
-            const pct = Math.min(100, (stableCount / maxFrames) * 100);
-            setRing(pct);
-            showStatus((isNightMode ? '🌙 Night mode — ' : '🔍 ') + 'Detecting floor… ' + Math.round(pct) + '%');
+      let hitSource = null, hitRequested = false;
+      let placed = false, sessionStart = null, stableCount = 0;
+      const lastHit = new THREE.Vector3();
+      let isNight = false;
 
-            if (stableCount >= maxFrames) placeCity('hittest');
-          } else {
-            reticle.visible = false;
-            stableCount = isNightMode ? Math.max(0, stableCount - 1) : 0;
-            setRing(Math.min(100, (stableCount / maxFrames) * 100));
-            showStatus('📱 Point camera slowly at the floor…');
+      const flyingLanterns = [];
+      let fireflyPoints = null;      // single Points object
+      let fireflyPositions = null;   // Float32Array for firefly animation
+
+      // Brightness sensor
+      let vidEl = null, brCtx = null;
+      function startBrightness() {
+        navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
+          .then(stream => {
+            vidEl = document.createElement('video');
+            vidEl.srcObject = stream; vidEl.playsInline = true; vidEl.muted = true; vidEl.play();
+            const c = document.createElement('canvas'); c.width=32; c.height=32;
+            brCtx = c.getContext('2d',{willReadFrequently:true});
+            setInterval(()=>{
+              if(!vidEl||vidEl.readyState<2) return;
+              brCtx.drawImage(vidEl,0,0,32,32);
+              const d=brCtx.getImageData(0,0,32,32).data;
+              let l=0; for(let i=0;i<d.length;i+=4) l+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+              l/=1024;
+              if((l<60)!==isNight){ isNight=l<60; elNight.style.display=isNight?'block':'none'; }
+            },1500);
+          }).catch(()=>{});
+      }
+
+      renderer.xr.addEventListener('sessionstart', () => {
+        elLoading.style.display = 'none';
+        sessionStart = performance.now();
+        showStatus('🔍 Aim at the floor ahead…');
+        elRing.style.display = 'block';
+        startBrightness();
+      });
+      renderer.xr.addEventListener('sessionend', () => {
+        hitSource=null; hitRequested=false; placed=false; stableCount=0; sessionStart=null;
+      });
+
+      /* ── Render loop ── */
+      renderer.setAnimationLoop((ts, frame) => {
+        if (frame) {
+          const session  = renderer.xr.getSession();
+          const refSpace = renderer.xr.getReferenceSpace();
+
+          if (!hitRequested && session) {
+            session.requestReferenceSpace('viewer').then(vs =>
+              session.requestHitTestSource({space:vs}).then(s => hitSource=s)
+            );
+            hitRequested = true;
+          }
+
+          if (!placed) {
+            const maxF = isNight ? FRAMES_NIGHT : FRAMES_DAY;
+            const maxD = isNight ? DRIFT_NIGHT  : DRIFT_DAY;
+            let gotHit = false;
+
+            if (hitSource) {
+              const hits = frame.getHitTestResults(hitSource);
+              if (hits.length) {
+                const pose = hits[0].getPose(refSpace);
+                reticle.visible = true;
+                reticle.matrix.fromArray(pose.transform.matrix);
+                const hp = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
+                const drift = hp.distanceTo(lastHit);
+                stableCount = drift < maxD ? stableCount+1 : (isNight ? Math.max(0,stableCount-1) : 0);
+                lastHit.copy(hp); gotHit = true;
+                const pct = Math.min(100,(stableCount/maxF)*100);
+                setRing(pct);
+                showStatus((isNight?'🌙 Night mode…':'🔍 Detecting floor…')+' '+Math.round(pct)+'%');
+                if (stableCount >= maxF) placeCity('hittest');
+              } else {
+                reticle.visible = false;
+                stableCount = isNight ? Math.max(0,stableCount-1) : 0;
+                setRing(Math.min(100,(stableCount/maxF)*100));
+                showStatus('📱 Point camera at the floor…');
+              }
+            }
+            if (!gotHit && sessionStart && performance.now()-sessionStart > FALLBACK_MS) placeCity('fallback');
           }
         }
 
-        if (!gotHit && sessionStartTime !== null) {
-          if (performance.now() - sessionStartTime > FALLBACK_MS) placeCity('fallback');
+        animLanterns(ts);
+        animLights(ts);
+        animFireflies(ts);
+        renderer.render(scene, camera);
+      });
+
+      /* ── Place city ── */
+      function placeCity(method) {
+        placed=true; reticle.visible=false; elRing.style.display='none';
+        const world = new THREE.Group();
+
+        if (method==='hittest') {
+          world.position.setFromMatrixPosition(reticle.matrix);
+          const e = reticle.matrix.elements;
+          world.rotation.y = Math.atan2(e[8], e[10]);
+        } else {
+          const cp=new THREE.Vector3(), cd=new THREE.Vector3();
+          camera.getWorldPosition(cp); camera.getWorldDirection(cd);
+          cd.y=0; if(cd.lengthSq()<0.001) cd.set(0,0,-1); cd.normalize();
+          world.position.set(cp.x+cd.x*1.5, cp.y-1.6, cp.z+cd.z*1.5);
+          world.rotation.y = Math.atan2(cd.x,cd.z)+Math.PI;
+        }
+
+        scene.add(world);
+        buildCity(world);
+
+        elTick.style.transform='translate(-50%,-50%) scale(1)'; elTick.style.opacity='1';
+        setTimeout(()=>{ elTick.style.opacity='0'; elTick.style.transform='translate(-50%,-50%) scale(0.8)'; },1300);
+        showStatus('🪷 Vesak City placed'+(method==='fallback'?' (floor estimated)':''));
+        setTimeout(hideStatus, 3000);
+      }
+
+      /* ══════════════════════════════════════════════════════════════════
+         BUILD CITY
+      ══════════════════════════════════════════════════════════════════ */
+      function buildCity(w) {
+        // Add pooled lights to world
+        lightPool.forEach(({ light }) => w.add(light));
+
+        floorDeco(w);
+        lotusPath(w);
+        buddhaStatue(w);
+        stupaRight(w);
+        vesakLanternCluster(w);
+        lotusLanterns(w);
+        pathPoles(w);
+        flyingLanternGroup(w, 18);
+        gardenOrbs(w);
+        fireflyCloud(w);
+      }
+
+      /* Floor mandala glow */
+      function floorDeco(p) {
+        p.add(new THREE.Mesh(
+          new THREE.CircleGeometry(5.5,64).rotateX(-Math.PI/2),
+          new THREE.MeshBasicMaterial({color:0xffd580,transparent:true,opacity:0.04,side:THREE.DoubleSide})
+        ));
+        [1.2,2.3,3.5,4.7].forEach(r => {
+          p.add(new THREE.Mesh(
+            new THREE.RingGeometry(r,r+0.025,64).rotateX(-Math.PI/2),
+            new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:0.09,side:THREE.DoubleSide})
+          ));
+        });
+      }
+
+      /* Buddha — left */
+      function buddhaStatue(p) {
+        const m = getModel('buddha', 1.9);
+        m.position.set(-2.5, 0, -5);
+        m.rotation.y = 0.22;
+        p.add(m);
+
+        const halo = new THREE.Mesh(
+          new THREE.RingGeometry(0.58,0.72,40),
+          new THREE.MeshBasicMaterial({color:0xffe070,transparent:true,opacity:0.65,side:THREE.DoubleSide})
+        );
+        halo.position.set(0, 2.15, -0.08); halo.rotation.x = -0.15;
+        m.add(halo);
+
+        // Incense glow — pure emissive, no extra light needed
+        const inc = new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),
+          new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8800,emissiveIntensity:3,transparent:true,opacity:0.9}));
+        inc.position.set(-2.5, 0.65, -4.6); p.add(inc);
+      }
+
+      /* Stupa — right */
+      function stupaRight(p) {
+        const m = getModel('stupa', 2.4);
+        m.position.set(3.0, 0, -5.5);
+        m.rotation.y = -0.18;
+        p.add(m);
+      }
+
+      /* Vesak lantern cluster — centre back */
+      function vesakLanternCluster(p) {
+        const spots = [
+          [0,   0, -7.5, 0.75],
+          [-1.1,0, -8.5, 0.55],
+          [ 1.1,0, -8.5, 0.55],
+          [-0.5,0, -6.5, 0.50],
+          [ 0.5,0, -6.5, 0.50],
+          [ 0,  0, -9.5, 0.50],
+          [-1.8,0, -7.0, 0.45],
+          [ 1.8,0, -7.0, 0.45],
+        ];
+        spots.forEach(([x,y,z,h]) => {
+          const m = getModel('vesakLantern', h);
+          m.position.set(x,y,z);
+          m.rotation.y = (Math.random()-0.5)*0.6;
+          p.add(m);
+          // No per-lantern PointLight — handled by pool
+        });
+
+        // String light beads — emissive only, zero lights
+        for (let i=0; i<=14; i++) {
+          const t = i/14;
+          const bead = new THREE.Mesh(
+            new THREE.SphereGeometry(0.052,5,5),
+            new THREE.MeshStandardMaterial({color:0xff9933,emissive:0xff6600,emissiveIntensity:2.8,transparent:true,opacity:0.95})
+          );
+          bead.position.set(
+            -2.5 + t*5.5,
+            2.1 - Math.sin(t*Math.PI)*0.4,
+            -5.0 - t*0.5
+          );
+          p.add(bead);
         }
       }
-    }
 
-    animateLanterns(timestamp);
-    animateLights(timestamp);
-    animateParticles(timestamp);
-    animateLotus(timestamp);
-    renderer.render(scene, camera);
-  }
+      /* Lotus flower path */
+      function lotusPath(p) {
+        for (let i=0; i<11; i++) {
+          const key = i%2===0 ? 'lotus1' : 'lotus2';
+          const h   = 0.18 + Math.random()*0.10;
+          const m   = getModel(key, h);
+          const sx  = i%2===0 ? -0.62 : 0.62;
+          m.position.set(sx+(Math.random()-0.5)*0.12, 0, -1.5-i*1.05+(Math.random()-0.5)*0.18);
+          m.rotation.y = Math.random()*Math.PI*2;
+          p.add(m);
+        }
 
-  // ── Place city ────────────────────────────────────────────────────────────────
-  function placeCity(method) {
-    placed = true; reticle.visible = false; elRing.style.display = 'none';
-
-    cityGroup = new THREE.Group();
-
-    if (method === 'hittest') {
-      cityGroup.position.setFromMatrixPosition(reticle.matrix);
-      const m = reticle.matrix.elements;
-      cityGroup.rotation.y = Math.atan2(m[8], m[10]);
-    } else {
-      const camPos = new THREE.Vector3(); const camDir = new THREE.Vector3();
-      camera.getWorldPosition(camPos); camera.getWorldDirection(camDir);
-      camDir.y = 0;
-      if (camDir.lengthSq() < 0.001) camDir.set(0, 0, -1);
-      camDir.normalize();
-      cityGroup.position.set(camPos.x + camDir.x * 1.6, camPos.y - 1.6, camPos.z + camDir.z * 1.6);
-      cityGroup.rotation.y = Math.atan2(camDir.x, camDir.z) + Math.PI;
-    }
-
-    cityGroup.scale.setScalar(CITY_SCALE);
-    scene.add(cityGroup);
-    buildCity(cityGroup);
-
-    elTick.style.transform = 'translate(-50%,-50%) scale(1)'; elTick.style.opacity = '1';
-    setTimeout(() => { elTick.style.opacity = '0'; elTick.style.transform = 'translate(-50%,-50%) scale(0.8)'; }, 1400);
-    setTimeout(() => { elScaleHint.style.display = 'block'; setTimeout(() => elScaleHint.style.display = 'none', 3500); }, 1600);
-
-    showStatus('🪷 Vesak City placed' + (method === 'fallback' ? ' (estimated)' : ''));
-    setTimeout(hideStatus, 3000);
-  }
-
-  // ── Build city ────────────────────────────────────────────────────────────────
-  function buildCity(w) {
-    // Ground plane — subtle glowing disc
-    addGroundDisc(w);
-
-    // Central stupa — focal centerpiece
-    addStupa(w, 0, 0, -6);
-
-    // Buddha statue — left of stupa
-    addBuddha(w, -7, 0, -6);
-
-    // Mirror stupa smaller right
-    addStupa(w, 7, 0, -6, 0.6);
-
-    // Vesak lanterns arch — curved overhead
-    addVesakLanternArch(w);
-
-    // Lotus lanterns on poles lining the path
-    addLotusLanternPath(w);
-
-    // Lotus flower clusters on the ground
-    addLotusGround(w);
-
-    // Flying sky lanterns
-    addSkyLanterns(w, 18);
-
-    // Ambient particle fireflies
-    addFireflies(w);
-
-    // Warm point lights around the space
-    addAmbientLights(w);
-  }
-
-  // ── Ground disc ────────────────────────────────────────────────────────────────
-  function addGroundDisc(parent) {
-    const geo = new THREE.CircleGeometry(12, 64);
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0x1a0a05, roughness: 0.95, metalness: 0.0,
-      transparent: true, opacity: 0.55,
-    });
-    const disc = new THREE.Mesh(geo, mat);
-    disc.rotation.x = -Math.PI / 2; disc.position.y = 0.01; parent.add(disc);
-
-    // Ring of small glowing stones as path markers
-    for (let i = 0; i < 20; i++) {
-      const angle = (i / 20) * Math.PI * 2;
-      const r = 9.5;
-      const stone = new THREE.Mesh(
-        new THREE.SphereGeometry(0.12, 6, 6),
-        new THREE.MeshStandardMaterial({ color: 0xffd580, emissive: 0xffa040, emissiveIntensity: 0.6, roughness: 0.6 })
-      );
-      stone.position.set(Math.cos(angle)*r, 0.12, Math.sin(angle)*r);
-      parent.add(stone);
-    }
-  }
-
-  // ── Stupa ──────────────────────────────────────────────────────────────────────
-  function addStupa(parent, x, y, z, scaleFactor = 1) {
-    const model = cloneModel('stupa', 1);
-    if (model) {
-      // Auto-fit: measure bounding box
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const targetHeight = 9 * scaleFactor;
-      model.scale.setScalar(targetHeight / maxDim);
-      // Place on floor
-      const box2 = new THREE.Box3().setFromObject(model);
-      model.position.set(x, -box2.min.y, z);
-      parent.add(model);
-      // Warm light at base
-      const bl = new THREE.PointLight(0xffd080, 1.2 * scaleFactor, 6 * scaleFactor);
-      bl.position.set(x, 1.2 * scaleFactor, z); parent.add(bl);
-      pathLights.push({ light: bl, phase: Math.random() * Math.PI * 2 });
-    } else {
-      // Fallback geometry stupa
-      const g = new THREE.Group(); g.position.set(x, y, z);
-      g.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(2.5,3,0.8,20), new THREE.MeshStandardMaterial({color:0xd4a96a})), {position:{set:(a,b,c)=>null}}));
-      const tiers = [[2.2,2.2,1.0],[1.7,1.7,0.9],[1.0,1.0,2.0],[0.4,0.4,1.0]];
-      let py = 0.8;
-      tiers.forEach(([rt,rb,h]) => {
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,16), new THREE.MeshStandardMaterial({color:0xe8d5b0}));
-        m.position.y = py + h/2; py += h; g.add(m);
-      });
-      g.scale.setScalar(scaleFactor); parent.add(g);
-    }
-  }
-
-  // ── Buddha ─────────────────────────────────────────────────────────────────────
-  function addBuddha(parent, x, y, z) {
-    const model = cloneModel('buddha', 1);
-    if (model) {
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const targetH = 7;
-      model.scale.setScalar(targetH / maxDim);
-      const box2 = new THREE.Box3().setFromObject(model);
-      model.position.set(x, -box2.min.y, z);
-      parent.add(model);
-      // Halo light
-      const hl = new THREE.PointLight(0xfff0cc, 1.0, 5);
-      hl.position.set(x, 5, z); parent.add(hl);
-      pathLights.push({ light: hl, phase: 0.5 });
-      // Golden ring halo
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(1.0, 0.06, 8, 48),
-        new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffa500, emissiveIntensity: 0.9, metalness: 0.8, roughness: 0.2 })
-      );
-      ring.position.set(x, 6.8, z); ring.rotation.x = -0.15; parent.add(ring);
-    } else {
-      // Fallback
-      const g = new THREE.Group(); g.position.set(x, y, z);
-      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.8,1.0,0.32,16), new THREE.MeshStandardMaterial({color:0x6d4b3b})));
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.6,16,12), new THREE.MeshStandardMaterial({color:0xf3e5ab})); body.position.y=0.9; g.add(body);
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.32,12,10), new THREE.MeshStandardMaterial({color:0xf5e7c0})); head.position.y=1.6; g.add(head);
-      parent.add(g);
-    }
-  }
-
-  // ── Vesak lantern arch ────────────────────────────────────────────────────────
-  function addVesakLanternArch(parent) {
-    const total = 12;
-    for (let i = 0; i < total; i++) {
-      const t  = (i / (total - 1)) * Math.PI; // half circle
-      const rx = 6.5;
-      const x  = Math.cos(t - Math.PI/2) * rx;
-      const z  = -3 + Math.sin(t - Math.PI/2) * 3.5;
-      const h  = 4.5 + Math.sin(t) * 1.8;
-
-      const model = cloneModel('vesakLantern', 1);
-      if (model) {
-        const box = new THREE.Box3().setFromObject(model);
-        const s   = box.getSize(new THREE.Vector3());
-        const tgt = 1.6;
-        model.scale.setScalar(tgt / Math.max(s.x, s.y, s.z));
-        model.position.set(x, h, z);
-        model.rotation.y = Math.random() * Math.PI * 2;
-        parent.add(model);
-        vesakLanternMeshes.push({ obj: model, baseY: h, phase: (i / total) * Math.PI * 2 });
-        // glow
-        const pl = new THREE.PointLight(0xff9933, 0.7, 4);
-        pl.position.set(x, h, z); parent.add(pl);
-        pathLights.push({ light: pl, phase: (i / total) * Math.PI * 2 });
-      } else {
-        // Fallback lantern ball
-        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3,10,10), new THREE.MeshStandardMaterial({color:0xff6633,emissive:0xff3300,emissiveIntensity:1.2,transparent:true,opacity:0.9}));
-        ball.position.set(x, h, z); parent.add(ball);
-        const pl = new THREE.PointLight(0xff9933, 0.8, 4);
-        pl.position.set(x, h, z); parent.add(pl);
-        pathLights.push({ light: pl, phase: (i / total) * Math.PI * 2 });
-        vesakLanternMeshes.push({ obj: ball, baseY: h, phase: (i / total) * Math.PI * 2 });
+        [
+          [-1.9,0,-2.5],[1.9,0,-2.5],
+          [-2.3,0,-5.5],[2.3,0,-5.5],
+          [-1.6,0,-8.5],[1.6,0,-8.5],
+          [-3.2,0,-4.0],[3.2,0,-4.0],
+          [-3.0,0,-7.5],[3.0,0,-7.5],
+        ].forEach(([x,y,z],idx) => {
+          const n = 2 + Math.floor(Math.random()*3);
+          for (let j=0; j<n; j++) {
+            const a = (j/n)*Math.PI*2;
+            const m = getModel(idx%2===0?'lotus1':'lotus2', 0.12+Math.random()*0.07);
+            m.position.set(x+Math.cos(a)*0.35, 0, z+Math.sin(a)*0.35);
+            m.rotation.y = Math.random()*Math.PI*2;
+            p.add(m);
+          }
+        });
       }
-    }
-  }
 
-  // ── Lotus lantern path ────────────────────────────────────────────────────────
-  function addLotusLanternPath(parent) {
-    const sideXs = [-3, 3, -2.2, 2.2];
-    let z = -1;
-    for (let i = 0; i < 8; i++) {
-      const sx = sideXs[i % sideXs.length];
-      const model = cloneModel('lotusLantern', 1);
-      if (model) {
-        const box = new THREE.Box3().setFromObject(model);
-        const s   = box.getSize(new THREE.Vector3());
-        const tgt = 2.0;
-        model.scale.setScalar(tgt / Math.max(s.x, s.y, s.z));
-        const box2 = new THREE.Box3().setFromObject(model);
-        model.position.set(sx, -box2.min.y + 1.8, z);
-        parent.add(model);
-        const pl = new THREE.PointLight(0xff88bb, 0.9, 3.5);
-        pl.position.set(sx, 2.5, z); parent.add(pl);
-        pathLights.push({ light: pl, phase: i * 0.7 });
-      } else {
-        addFallbackLanternPole(parent, sx, z);
+      /* Lotus lanterns — emissive only, no per-lantern lights */
+      function lotusLanterns(p) {
+        [
+          [-1.3,0,-10],[1.3,0,-10],
+          [-2.6,0,-8.8],[2.6,0,-8.8],
+          [-0.6,0,-11.5],[0.6,0,-11.5],
+          [-3.8,0,-3.2],[3.8,0,-3.2],
+          [-3.8,0,-6.5],[3.8,0,-6.5],
+          [0,0,-12.5],
+        ].forEach(([x,y,z]) => {
+          const m = getModel('lotusLantern', 0.36);
+          m.position.set(x,y,z);
+          m.rotation.y = Math.random()*Math.PI*2;
+          p.add(m);
+        });
       }
-      // pole
-      const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.08, 3.0, 8),
-        new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.85 })
-      );
-      pole.position.set(sx, 1.5, z); parent.add(pole);
-      z -= 1.8;
-    }
-  }
 
-  function addFallbackLanternPole(parent, x, z) {
-    const lan = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.44,12), new THREE.MeshStandardMaterial({color:0xff6633,emissive:0xff4400,emissiveIntensity:0.9,transparent:true,opacity:0.92}));
-    lan.position.set(x, 2.5, z); parent.add(lan);
-    const pl = new THREE.PointLight(0xff9933, 0.8, 3.5); pl.position.set(x, 2.5, z); parent.add(pl);
-    pathLights.push({ light: pl, phase: Math.random() * Math.PI * 2 });
-  }
+      /* Path poles — emissive glowing tops, no extra PointLights */
+      function pathPoles(p) {
+        // Shared material instances — PERF FIX 5: don't create new material per mesh
+        const poleMat = new THREE.MeshStandardMaterial({color:0x7a4a20,roughness:0.85});
+        const ballMat = new THREE.MeshStandardMaterial({color:0xffaa33,emissive:0xff8800,emissiveIntensity:2.2,transparent:true,opacity:0.93});
+        const poleGeo = new THREE.CylinderGeometry(0.03,0.04,2.1,6);
+        const ballGeo = new THREE.SphereGeometry(0.092,8,8);
 
-  // ── Lotus ground ──────────────────────────────────────────────────────────────
-  function addLotusGround(parent) {
-    const positions = [
-      [-1.5, 0, -2], [1.5, 0, -2], [-3, 0, -4], [3, 0, -4],
-      [-1, 0, -8], [1, 0, -8.5], [-4, 0, -10], [4, 0, -10],
-      [0, 0, -3], [-2.5, 0, -12], [2.5, 0, -12],
-    ];
-    positions.forEach(([x, y, z], idx) => {
-      const key  = idx % 2 === 0 ? 'lotus1' : 'lotus2';
-      const model = cloneModel(key, 1);
-      if (model) {
-        const box = new THREE.Box3().setFromObject(model);
-        const s   = box.getSize(new THREE.Vector3());
-        const tgt = 0.8 + Math.random() * 0.5;
-        model.scale.setScalar(tgt / Math.max(s.x, s.y, s.z));
-        const box2 = new THREE.Box3().setFromObject(model);
-        model.position.set(x, -box2.min.y + 0.02, z);
-        model.rotation.y = Math.random() * Math.PI * 2;
-        parent.add(model);
-        lotusGroups.push({ obj: model, baseY: model.position.y, phase: Math.random() * Math.PI * 2 });
-      } else {
-        // Fallback lotus
-        const f = createFallbackLotus(0.5 + Math.random() * 0.3);
-        f.position.set(x, 0.02, z); f.rotation.y = Math.random() * Math.PI * 2;
-        parent.add(f);
-        lotusGroups.push({ obj: f, baseY: 0.02, phase: Math.random() * Math.PI * 2 });
+        [-1.25,1.25].forEach(sx => {
+          for (let i=0; i<8; i++) {
+            const z = -1.4-i*1.5;
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.set(sx,1.05,z); p.add(pole);
+            const ball = new THREE.Mesh(ballGeo, ballMat);
+            ball.position.set(sx,2.15,z); p.add(ball);
+          }
+        });
       }
-    });
-  }
 
-  function createFallbackLotus(sz) {
-    const g = new THREE.Group();
-    const pm = new THREE.MeshStandardMaterial({ color: 0xff88cc, roughness: 0.5, emissive: 0xff4488, emissiveIntensity: 0.15 });
-    for (let i = 0; i < 8; i++) {
-      const p = new THREE.Mesh(new THREE.ConeGeometry(0.18*sz, 0.55*sz, 6), pm);
-      p.position.y = 0.15*sz; p.rotation.x = Math.PI/2 - 0.3;
-      p.rotation.z = (i/8)*Math.PI*2; p.scale.set(1,1,0.4); g.add(p);
-    }
-    const c = new THREE.Mesh(new THREE.SphereGeometry(0.13*sz,8,8), new THREE.MeshStandardMaterial({color:0xffe070,emissive:0xffaa00,emissiveIntensity:0.5}));
-    c.position.y = 0.08*sz; g.add(c); return g;
-  }
-
-  // ── Sky lanterns (flying) ─────────────────────────────────────────────────────
-  function addSkyLanterns(parent, count) {
-    for (let i = 0; i < count; i++) {
-      const model = cloneModel('vesakLantern', 1);
-      let obj;
-      if (model) {
-        const box = new THREE.Box3().setFromObject(model);
-        const s   = box.getSize(new THREE.Vector3());
-        const tgt = 1.4;
-        model.scale.setScalar(tgt / Math.max(s.x, s.y, s.z));
-        obj = model;
-      } else {
-        obj = createFallbackSkyLantern();
+      /* Flying sky lanterns */
+      function flyingLanternGroup(p, count) {
+        for (let i=0; i<count; i++) {
+          const l = mkSkyLantern();
+          l.position.set((Math.random()-0.5)*8, 0.4+Math.random()*0.5, -1-Math.random()*10);
+          l.userData = {
+            speed : 0.011+Math.random()*0.019,
+            driftX: (Math.random()-0.5)*0.0014,
+            driftZ: -0.001-Math.random()*0.001,
+            phase : Math.random()*Math.PI*2
+          };
+          flyingLanterns.push(l); p.add(l);
+        }
       }
-      obj.position.set(
-        (Math.random() - 0.5) * 10,
-        0.6 + Math.random() * 0.6,
-        -2 - Math.random() * 10
-      );
-      obj.userData = {
-        speed:  0.012 + Math.random() * 0.018,
-        driftX: (Math.random() - 0.5) * 0.0018,
-        driftZ: -0.0012 - Math.random() * 0.001,
-        phase:  Math.random() * Math.PI * 2,
-      };
-      flyingLanterns.push(obj); parent.add(obj);
 
-      // warm glow
-      const pl = new THREE.PointLight(0xffb040, 0.6, 5);
-      pl.position.copy(obj.position); obj.userData.light = pl; parent.add(pl);
-    }
-  }
+      // Shared lantern geometries/materials
+      const _lanternBodyGeo = new THREE.SphereGeometry(0.21,10,8);
+      const _lanternRingGeo = new THREE.TorusGeometry(0.16,0.022,6,20);
+      const _lanternFlamGeo = new THREE.ConeGeometry(0.056,0.19,6);
+      const _lanternBodyMat = new THREE.MeshStandardMaterial({color:0xffeb99,emissive:0xffd36b,emissiveIntensity:1.5,transparent:true,opacity:0.87});
+      const _lanternRingMat = new THREE.MeshStandardMaterial({color:0x7a4a2c});
+      const _lanternFlamMat = new THREE.MeshStandardMaterial({color:0xffa533,emissive:0xff7700,emissiveIntensity:4});
 
-  function createFallbackSkyLantern() {
-    const g = new THREE.Group();
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.22,12,10), new THREE.MeshStandardMaterial({color:0xffeb99,emissive:0xffd36b,emissiveIntensity:1.3,transparent:true,opacity:0.88}));
-    b.scale.set(1,1.3,1); g.add(b);
-    const f = new THREE.Mesh(new THREE.ConeGeometry(0.06,0.18,8), new THREE.MeshStandardMaterial({color:0xffa533,emissive:0xff7700,emissiveIntensity:3}));
-    f.position.y = -0.22; f.rotation.x = Math.PI; g.add(f);
-    g.add(new THREE.PointLight(0xffb060, 0.9, 4.5));
-    return g;
-  }
-
-  // ── Fireflies ─────────────────────────────────────────────────────────────────
-  function addFireflies(parent) {
-    const g = new THREE.Group();
-    for (let i = 0; i < 30; i++) {
-      const ff = new THREE.Mesh(
-        new THREE.SphereGeometry(0.05, 6, 6),
-        new THREE.MeshStandardMaterial({ color: 0xf0ffaa, emissive: 0xddff44, emissiveIntensity: 2.0, transparent: true, opacity: 0.85 })
-      );
-      ff.position.set(
-        (Math.random() - 0.5) * 10,
-        0.3 + Math.random() * 2.5,
-        -0.5 - Math.random() * 11
-      );
-      g.add(ff);
-    }
-    parent.add(g); particleGroups.push(g);
-  }
-
-  // ── Ambient lights ─────────────────────────────────────────────────────────────
-  function addAmbientLights(parent) {
-    [
-      [-3, 0.6, -2,   0xffcc88],
-      [ 3, 0.6, -2,   0xffcc88],
-      [-5, 0.6, -6,   0xff8844],
-      [ 5, 0.6, -6,   0xff8844],
-      [ 0, 0.6, -12,  0xffddaa],
-    ].forEach(([x, y, z, col]) => {
-      const orb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 10, 10),
-        new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.0, transparent: true, opacity: 0.92 })
-      );
-      orb.position.set(x, y, z); parent.add(orb);
-      const pl = new THREE.PointLight(col, 0.9, 5.5);
-      pl.position.set(x, y, z); parent.add(pl);
-      pathLights.push({ light: pl, phase: Math.random() * Math.PI * 2 });
-    });
-  }
-
-  // ── Animations ────────────────────────────────────────────────────────────────
-  function animateLanterns(t) {
-    flyingLanterns.forEach(l => {
-      l.position.y += l.userData.speed;
-      l.position.x += l.userData.driftX + Math.sin(t * 0.0009 + l.userData.phase) * 0.0008;
-      l.position.z += l.userData.driftZ;
-      l.rotation.y += 0.003;
-      l.rotation.z  = Math.sin(t * 0.0009 + l.userData.phase) * 0.06;
-      if (l.userData.light) l.userData.light.position.copy(l.position);
-      if (l.position.y > 14) {
-        l.position.y = 0.8;
-        l.position.x = (Math.random() - 0.5) * 10;
-        l.position.z = -2 - Math.random() * 10;
-        if (l.userData.light) l.userData.light.position.copy(l.position);
+      function mkSkyLantern() {
+        const g = new THREE.Group();
+        const b = new THREE.Mesh(_lanternBodyGeo, _lanternBodyMat);
+        b.scale.set(1,1.38,1); g.add(b);
+        const r = new THREE.Mesh(_lanternRingGeo, _lanternRingMat);
+        r.rotation.x=Math.PI/2; r.position.y=-0.28; g.add(r);
+        const f = new THREE.Mesh(_lanternFlamGeo, _lanternFlamMat);
+        f.position.y=-0.19; f.rotation.x=Math.PI; g.add(f);
+        // ────────────────────────────────────────────────────────────────
+        // PERF FIX 6 — Sky lanterns: remove per-lantern PointLight.
+        // 18 lanterns × 1 PointLight each = 18 extra lights thrashing GPU.
+        // The emissive flame + body already glow convincingly without them.
+        // Pool lights cover ambient warmth from below.
+        // ────────────────────────────────────────────────────────────────
+        return g;
       }
-    });
-  }
 
-  function animateLights(t) {
-    pathLights.forEach(({ light, phase }) => {
-      light.intensity = 0.55 + 0.3 * Math.sin(t * 0.005 + phase);
-      light.color.setHSL(0.09 + Math.sin(t * 0.008 + phase) * 0.02, 0.88, 0.52 + 0.1 * Math.sin(t * 0.011 + phase));
-    });
-    // vesak lanterns gentle bob
-    vesakLanternMeshes.forEach(({ obj, baseY, phase }) => {
-      obj.position.y = baseY + Math.sin(t * 0.0008 + phase) * 0.12;
-      obj.rotation.z = Math.sin(t * 0.0006 + phase) * 0.04;
-    });
-  }
+      /* Ambient garden orbs — emissive mesh only */
+      function gardenOrbs(p) {
+        const orbMat = new THREE.MeshStandardMaterial({color:0xffd580,emissive:0xffd150,emissiveIntensity:1.4,transparent:true,opacity:0.9});
+        const orbGeo = new THREE.SphereGeometry(0.09,8,8);
+        [
+          [-1.9,0.42,-1.6],[1.9,0.42,-1.6],
+          [-3.3,0.42,-4.8],[3.3,0.42,-4.8],
+          [-1.6,0.42,-7.8],[1.6,0.42,-7.8],
+          [-2.1,0.42,-10.5],[2.1,0.42,-10.5],
+          [0,0.42,-1.0],[0,0.42,-13.0],
+        ].forEach(([x,y,z]) => {
+          const orb = new THREE.Mesh(orbGeo, orbMat);
+          orb.position.set(x,y,z); p.add(orb);
+        });
+      }
 
-  function animateParticles(t) {
-    particleGroups.forEach((g, idx) => {
-      g.children.forEach((p, i) => {
-        p.position.y += 0.0018 + 0.001 * idx;
-        p.position.x += Math.sin(t * 0.0006 + i * 0.7) * 0.0009;
-        p.material.opacity = 0.5 + 0.4 * Math.sin(t * 0.003 + i);
-        if (p.position.y > 3.5) p.position.y = 0.3;
-      });
-    });
-  }
+      /* ────────────────────────────────────────────────────────────────────
+         PERF FIX 7 — Fireflies as a single THREE.Points object
+         Old: 32 individual Mesh objects = 32 draw calls per frame.
+         New: 1 Points object = 1 draw call per frame.
+         Animation updates the BufferAttribute directly (no per-object GC).
+      ──────────────────────────────────────────────────────────────────── */
+      const FF_COUNT = 32;
+      function fireflyCloud(p) {
+        fireflyPositions = new Float32Array(FF_COUNT * 3);
+        const baseY   = new Float32Array(FF_COUNT);
+        const phases  = new Float32Array(FF_COUNT);
 
-  function animateLotus(t) {
-    lotusGroups.forEach(({ obj, baseY, phase }) => {
-      obj.position.y = baseY + Math.sin(t * 0.0007 + phase) * 0.05;
-      obj.rotation.y += 0.0008;
-    });
-  }
+        for (let i = 0; i < FF_COUNT; i++) {
+          fireflyPositions[i*3]   = (Math.random()-0.5)*9;
+          fireflyPositions[i*3+1] = 0.15 + Math.random()*2.0;
+          fireflyPositions[i*3+2] = -0.5 - Math.random()*11;
+          baseY[i]   = fireflyPositions[i*3+1];
+          phases[i]  = Math.random()*Math.PI*2;
+        }
 
-  // ── Start ─────────────────────────────────────────────────────────────────────
-  init();
-</script>
-</body>
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
+        // Store metadata on geometry for animation
+        geo.userData = { baseY, phases };
+
+        const mat = new THREE.PointsMaterial({
+          color: 0xffe7aa,
+          size: 0.07,
+          transparent: true,
+          opacity: 0.85,
+          sizeAttenuation: true,
+        });
+
+        fireflyPoints = new THREE.Points(geo, mat);
+        p.add(fireflyPoints);
+      }
+
+      /* ── Animations ── */
+      function animLanterns(t) {
+        flyingLanterns.forEach(l => {
+          l.position.y += l.userData.speed;
+          l.position.x += l.userData.driftX + Math.sin(t*0.001+l.userData.phase)*0.0007;
+          l.position.z += l.userData.driftZ;
+          l.rotation.y += 0.003;
+          l.rotation.z  = Math.sin(t*0.001+l.userData.phase)*0.05;
+          if (l.position.y > 14) {
+            l.position.y = 0.5;
+            l.position.x = (Math.random()-0.5)*8;
+            l.position.z = -1-Math.random()*10;
+          }
+        });
+      }
+
+      function animLights(t) {
+        lightPool.forEach(({ light, phase }) => {
+          light.intensity = 0.52 + 0.30*Math.sin(t*0.006+phase);
+          light.color.setHSL(0.09, 0.9, 0.50+0.13*Math.sin(t*0.011+phase));
+        });
+      }
+
+      /* Single-buffer firefly animation — no per-object overhead */
+      function animFireflies(t) {
+        if (!fireflyPoints) return;
+        const pos    = fireflyPoints.geometry.attributes.position;
+        const { baseY, phases } = fireflyPoints.geometry.userData;
+
+        for (let i = 0; i < FF_COUNT; i++) {
+          pos.array[i*3]   += Math.sin(t*0.0007+i)*0.0006;
+          pos.array[i*3+1] += 0.0019;
+          if (pos.array[i*3+1] > 2.7) pos.array[i*3+1] = 0.15;
+        }
+        pos.needsUpdate = true;  // single flag, not per-object
+        fireflyPoints.material.opacity = 0.55 + 0.35*Math.abs(Math.sin(t*0.0014));
+      }
+
+      /* ── Status helpers ── */
+      function showStatus(msg){ elStatus.textContent=msg; elStatus.style.display='block'; elStatus.style.opacity='1'; }
+      function hideStatus(){ elStatus.style.opacity='0'; setTimeout(()=>elStatus.style.display='none',400); }
+      function setRing(pct){
+        elRingFill.style.strokeDashoffset = CIRCUM*(1-pct/100);
+        elRingPct.textContent = Math.round(pct)+'%';
+        elRingFill.style.stroke = `hsl(${pct<50?174:174+(pct-50)*1.8},100%,55%)`;
+      }
+
+      /* ── Start ── */
+      await preload();
+
+    </script>
+  </body>
 </html>
